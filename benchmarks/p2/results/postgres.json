@@ -1,0 +1,7 @@
+{
+  "version": "17.11",
+  "page_bytes": 8192,
+  "dictionary": "simple sobre los mismos tokens Snowball",
+  "ranker": "ts_rank_cd (no TF-IDF)",
+  "buffers": "shared hit/read de EXPLAIN ANALYZE; no equivalen al contador propio de 4 KB"
+}

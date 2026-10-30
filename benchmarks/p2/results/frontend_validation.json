@@ -1,0 +1,15 @@
+{
+  "catalog": true,
+  "text": true,
+  "ivf": true,
+  "bovw": true,
+  "exact": true,
+  "image_upload": true,
+  "map": true,
+  "geographic_knn": true,
+  "sql": true,
+  "experiments": 4,
+  "mobile_width": 390,
+  "empty_state": true,
+  "console_errors": []
+}

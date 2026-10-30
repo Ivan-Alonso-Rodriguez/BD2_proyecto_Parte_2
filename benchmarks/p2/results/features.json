@@ -1,0 +1,15 @@
+{
+  "n": 10000,
+  "queries": 100,
+  "model": "ResNet18_IMAGENET1K_V1",
+  "dimensions": 512,
+  "sift_seconds": 71.4532448,
+  "dense_seconds": 264.2405136000002,
+  "query_partition": "siguientes filas, no indexadas",
+  "sift_resize": [
+    224,
+    224
+  ],
+  "batch_size": 32,
+  "threads": 4
+}

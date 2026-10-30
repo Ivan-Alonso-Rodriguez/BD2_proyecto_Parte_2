@@ -1,0 +1,20 @@
+{
+  "records": 10000,
+  "all_rids_match_heap_rtree_text_ivf": true,
+  "images_verified": 100,
+  "ivf_full_probes_equals_exact": true,
+  "dimensions": 512,
+  "source": {
+    "url": "https://huggingface.co/datasets/ashraq/fashion-product-images-small/resolve/3859c76db2f6f3d3b9a3863345e3ccdbff75879d/data/train-00000-of-00002-6cff4c59f91661c3.parquet",
+    "bytes": 136091680,
+    "sha256": "0f9b4042c6eea3c77aa0794630c956d1985de791c365abdb332f9d9cfa78d00a",
+    "dataset": "ashraq/fashion-product-images-small",
+    "revision": "3859c76db2f6f3d3b9a3863345e3ccdbff75879d",
+    "original_source": "https://www.kaggle.com/datasets/paramaggarwal/fashion-product-images-small"
+  },
+  "synthetic_fields": [
+    "precio",
+    "lon",
+    "lat"
+  ]
+}

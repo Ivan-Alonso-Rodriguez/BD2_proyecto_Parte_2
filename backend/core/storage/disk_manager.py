@@ -11,6 +11,8 @@ class DiskManager:
         if page_size not in (1024, 2048, 4096, 8192):
             raise ValueError("page_size debe ser 1024, 2048, 4096 u 8192")
         self.filepath = Path(filepath)
+        self.kind = ("table" if self.filepath.suffix in (".bin", ".overflow")
+                     else "blob" if self.filepath.suffix == ".blobs" else "index")
         self.page_size = page_size
         self.counter = counter if counter is not None else DiskCounter()
         self.filepath.parent.mkdir(parents=True, exist_ok=True)
@@ -30,7 +32,7 @@ class DiskManager:
         data = self.file.read(self.page_size)
         if len(data) != self.page_size:
             raise ValueError("Lectura de página incompleta")
-        self.counter.register_read()
+        self.counter.register_read(self.kind)
         return data
 
     def write_page(self, page_id, data):
@@ -40,7 +42,7 @@ class DiskManager:
         self.file.seek(offset)
         if self.file.write(data) != self.page_size:
             raise OSError("Escritura de página incompleta")
-        self.counter.register_write()
+        self.counter.register_write(self.kind)
 
     def allocate_page(self, data=None):
         page_id = self.num_pages()
@@ -51,7 +53,7 @@ class DiskManager:
         self.file.seek(page_id * self.page_size)
         if self.file.write(data) != self.page_size:
             raise OSError("Asignación de página incompleta")
-        self.counter.register_write()
+        self.counter.register_write(self.kind)
         return page_id
 
     def num_pages(self):

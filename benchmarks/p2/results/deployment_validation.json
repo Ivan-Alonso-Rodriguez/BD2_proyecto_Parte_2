@@ -1,0 +1,9 @@
+{
+  "docker_image": "atlas-bd2:p2",
+  "port": 8001,
+  "records": 10000,
+  "text_and_price": true,
+  "geographic_knn": true,
+  "image_upload_resnet_ivf": true,
+  "reads": 2079
+}

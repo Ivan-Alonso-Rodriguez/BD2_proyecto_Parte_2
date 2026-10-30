@@ -46,3 +46,18 @@ informe/*.synctex.gz
 
 .ruff_cache/
 node_modules/
+.cache/
+data/fashion/
+data/multimodal/
+*.parquet
+*.pth
+*.npy
+*.npz
+*.inv
+*.dic
+*.norm
+*.blobs
+informe/_build/
+benchmarks/p2/work/
+benchmarks/p2/smoke-results/
+output/pdf/

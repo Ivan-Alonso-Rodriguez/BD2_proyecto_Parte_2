@@ -1,0 +1,23 @@
+services:
+  atlas:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data/database:/app/data/database
+      - ./.cache/torch:/app/.cache/torch
+    command: ["python", "run.py", "--host", "0.0.0.0"]
+  postgres:
+    image: postgres:17-alpine
+    profiles: ["benchmark"]
+    environment:
+      POSTGRES_DB: atlas_bench
+      POSTGRES_USER: atlas_bench
+      POSTGRES_PASSWORD: atlas_bench_local
+    ports:
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atlas_bench -d atlas_bench"]
+      interval: 2s
+      timeout: 5s
+      retries: 20

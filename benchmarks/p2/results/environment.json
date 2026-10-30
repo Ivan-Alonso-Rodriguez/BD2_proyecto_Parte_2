@@ -1,0 +1,16 @@
+{
+  "python": "3.12.14",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "cpu": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "logical_cpus": 28,
+  "seed": 42,
+  "page_size": 4096,
+  "cache": "archivos sin buffering Python; caché del SO no vaciada; objetos índice nuevos por consulta",
+  "packages": {
+    "numpy": "2.5.4",
+    "torch": "2.15.0",
+    "torchvision": "0.29.2",
+    "nltk": "3.10.4",
+    "opencv-python-headless": "4.14.0.94"
+  }
+}

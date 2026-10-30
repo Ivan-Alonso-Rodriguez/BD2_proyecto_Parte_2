@@ -1,0 +1,13 @@
+# Procedencia y dependencias
+
+- **Base P1:** [ArmandoPal/BD2_proyecto](https://github.com/ArmandoPal/BD2_proyecto), commit `1634a747b97d71bea83fe02f00d18b6ef14028f0`. Se mantiene su historial y documentación original separada.
+- **Dataset:** [Fashion Product Images (Small), Param Aggarwal](https://www.kaggle.com/datasets/paramaggarwal/fashion-product-images-small), copia pública [ashraq en Hugging Face](https://huggingface.co/datasets/ashraq/fashion-product-images-small). Revisión `3859c76db2f6f3d3b9a3863345e3ccdbff75879d`. Primer shard: 136091680 bytes; SHA-256 `0f9b4042c6eea3c77aa0794630c956d1985de791c365abdb332f9d9cfa78d00a`. Dataset y pesos se descargan desde sus distribuidores; no se redistribuyen en Git.
+- **Embeddings:** [ResNet-18, Torchvision](https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.resnet18.html), pesos `IMAGENET1K_V1`. Se extrae la salida previa a la clasificación, 512D.
+- **SIFT:** [OpenCV](https://docs.opencv.org/4.x/da/df5/tutorial_py_sift_intro.html); David Lowe, [artículo original](https://www.cs.ubc.ca/~lowe/papers/ijcv04.pdf).
+- **Texto:** Snowball de NLTK, stoplists locales documentadas en el código y fórmula de TF-IDF del enunciado; [Introduction to Information Retrieval](https://nlp.stanford.edu/IR-book/).
+- **Mapa:** [Leaflet 1.9.4](https://leafletjs.com/reference.html), licencia BSD-2-Clause en `frontend/vendor/LEAFLET-LICENSE.txt`. Teselas de CARTO / OpenStreetMap con atribución visible; necesitan internet. El motor y los puntos funcionan localmente.
+- **Comparador externo:** [PostgreSQL 17 GIN](https://www.postgresql.org/docs/17/textsearch-indexes.html), aislado en Compose. [EXPLAIN/BUFFERS](https://www.postgresql.org/docs/17/using-explain.html) documenta la interpretación de sus contadores.
+
+Los títulos, categorías y colores son atributos originales; la descripción de búsqueda concatena esos atributos y traducciones breves de la categoría. Precios y ubicaciones son simulados con semilla 2026. Los archivos de evidencia distinguen esta procedencia.
+
+No se presupone una licencia global nueva sobre el código heredado. Cada dependencia conserva sus propios términos.

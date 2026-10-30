@@ -2,65 +2,61 @@
 <html lang="es">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Atlas · BD II SQL Workspace</title>
-  <link rel="stylesheet" href="src/styles.css">
+  <title>Atlas · Explorador multimodal</title>
+  <meta name="description" content="Recomendador multimodal con índices binarios en disco, búsqueda visual y telemetría de consultas.">
+  <link rel="stylesheet" href="/vendor/leaflet.css"><link rel="stylesheet" href="/src/studio.css">
+  <script defer src="/vendor/leaflet.js"></script><script type="module" src="/src/studio.js"></script>
 </head>
 <body>
-  <aside class="sidebar">
-    <a class="brand" href="/"><span class="brand-icon">▤</span> atlas<span class="brand-tag">BD II</span></a>
-    <div class="workspace"><span class="workspace-icon">A</span><div>Proyecto relacional<small>Entregable 01 · almacenamiento en disco</small></div></div>
-    <div class="section-label">WORKSPACE</div>
-    <div class="nav-active"><span>⌘</span> Editor SQL <kbd>⌃ ↵</kbd></div>
-    <div class="explorer-heading"><span class="section-label">EXPLORADOR DE TABLAS</span><button id="refresh" class="icon-button" title="Actualizar tablas" aria-label="Actualizar tablas">↻</button></div>
-    <div id="tables" class="table-tree"><div class="muted">Cargando catálogo…</div></div>
-    <div class="sidebar-footer"><span class="dot"></span><div>Motor propio<small>Páginas binarias · RID · I/O real</small></div><span class="version">v1.0</span></div>
-  </aside>
+<aside class="sidebar">
+  <a class="brand" href="/"><span class="brand-mark">a</span><span>atlas<span class="brand-dot">.</span></span></a>
+  <div class="workspace-label">BASE DE DATOS II <span>02</span></div>
+  <nav aria-label="Navegación principal">
+    <button class="nav-item active" data-view="explore"><span>◈</span> Explorar catálogo <span class="nav-count">10k</span></button>
+    <button class="nav-item" data-view="map"><span>◎</span> Mapa de tiendas</button>
+    <button class="nav-item" data-view="sql"><span>⌘</span> Consola SQL</button>
+    <button class="nav-item" data-view="benchmarks"><span>▥</span> Experimentos</button>
+  </nav>
+  <div class="sidebar-rule"></div><p class="eyebrow side-title">EL MOTOR</p>
+  <div class="index-list"><span>R-Tree <i>ESPACIAL</i></span><span>Índice invertido <i>TEXTO</i></span><span>IVF Flat <i>VECTORIAL</i></span><span>B+ / Hash <i>RELACIONAL</i></span></div>
+  <div class="sidebar-bottom"><div class="connection"><span class="status-dot"></span><span id="connection">Conectando motor…</span></div><p>Páginas de 4 KB · persistencia local</p><a href="/sql.html">Abrir cliente del entregable 1 ↗</a></div>
+</aside>
+<div class="workspace">
+  <header class="topbar"><div><span class="muted">Proyecto del curso</span><span class="slash">/</span><strong>Motor multimodal</strong></div><div class="top-right"><span class="version">ENTREGABLE 02</span><span class="avatar">BD</span></div></header>
   <main>
-    <header class="topbar"><div><span class="muted">Workspace</span><span class="slash">/</span><strong>Editor SQL</strong></div><div id="connection" class="connection"><span class="dot"></span> Conectando</div></header>
-    <div class="content">
-      <div class="page-heading"><div><div class="eyebrow">CONSULTAS Y RENDIMIENTO</div><h1>SQL Workspace</h1><p>Explora tus datos y observa cómo los consulta el motor.</p></div><div class="heading-actions"><span class="course-badge">CS2042 <span>·</span> Base de Datos II</span><button id="import-open" class="secondary-button">↑ Importar CSV</button></div></div>
-      <section class="editor-card">
-        <div class="card-toolbar"><div class="editor-tab"><span class="sql-icon">⌘</span> Consulta SQL <span class="tab-dot"></span></div><div class="toolbar-right"><label class="sr-only" for="examples">Ejemplos SQL</label><select id="examples"><option value="">Ejemplos rápidos</option><option value="select">Consultar tabla</option><option value="point">Buscar por clave</option><option value="range">Consultar rango</option><option value="index">Crear índice B+</option><option value="hash">Crear índice Hash</option><option value="demo">Crear tabla demo</option><option value="insert">Insertar fila</option><option value="delete">Eliminar por clave</option><option value="deleteAll">Vaciar tabla</option><option value="drop">Eliminar tabla</option></select><button id="clear" class="text-button">Limpiar</button></div></div>
-        <div class="editor-body"><div id="line-numbers" aria-hidden="true">1</div><div class="code-area"><pre id="highlight" aria-hidden="true"></pre><textarea id="sql" aria-label="Consulta SQL" spellcheck="false" wrap="off" placeholder="Escribe una consulta SQL…"></textarea></div></div>
-        <div class="editor-footer"><span id="statement-info">Una sentencia a la vez <span>·</span> Ctrl + Enter para ejecutar</span><div class="editor-actions"><button id="run" class="primary-button"><span id="run-icon">▶</span><span id="run-label">Ejecutar consulta</span></button></div></div>
-      </section>
-      <div class="status-row"><div id="status" role="status"><span class="status-symbol">○</span> Listo para ejecutar</div><button id="reorganize" class="text-button" hidden>Reorganizar tabla</button></div>
-      <section class="metrics" aria-label="Plan de ejecución y métricas">
-        <article class="metric access"><span>RUTA DE ACCESO</span><strong id="access-path">—</strong><small id="index-name">El planner elegirá la ruta</small></article>
-        <article class="metric"><span><i class="read-dot"></i> DISK READS</span><strong id="disk-reads">—</strong><small>páginas leídas</small></article>
-        <article class="metric"><span><i class="write-dot"></i> DISK WRITES</span><strong id="disk-writes">—</strong><small>páginas escritas</small></article>
-        <article class="metric"><span>TIEMPO DE PARSEO</span><strong id="parse-time">—</strong><small>milisegundos</small></article>
-        <article class="metric"><span>TIEMPO DE EJECUCIÓN</span><strong id="exec-time">—</strong><small>milisegundos</small></article>
-      </section>
-      <section class="results-card">
-        <div class="results-heading"><div><span class="result-icon">▦</span><strong>Resultados</strong><span id="row-count" class="count-badge">0 filas</span></div><span id="result-note" class="muted">Los resultados aparecerán aquí</span></div>
-        <div id="results" class="results-scroll"><div class="empty-state"><div class="empty-icon">▤</div><h3>Tu próxima consulta comienza aquí</h3><p>Selecciona una tabla o ejecuta una sentencia SQL.<br>Los resultados y sus métricas provienen del motor en disco.</p></div></div>
-        <div class="results-footer"><span id="page-info">Sin resultados</span><div class="pagination"><label for="page-size">Filas por página</label><select id="page-size"><option>25</option><option selected>100</option><option>250</option></select><button id="previous" class="icon-button" disabled aria-label="Página anterior">‹</button><span id="page-number">1</span><button id="next" class="icon-button" disabled aria-label="Página siguiente">›</button></div></div>
-      </section>
-      <details id="execution-plan" class="plan-card" open>
-        <summary><strong>Plan de ejecución</strong><span id="plan-mode" class="count-badge">Sin plan</span></summary>
-        <div id="plan-content"><p class="plan-empty">Ejecuta una consulta para ver sus pasos y métricas.</p></div>
-      </details>
-      <section class="io-history"><div><strong>Actividad de I/O</strong><span>Últimas ejecuciones de esta sesión</span></div><div id="history" class="history-bars"><span class="muted">Ejecuta una consulta para comparar sus accesos.</span></div><div class="legend"><span><i class="read-dot"></i> Lecturas</span><span><i class="write-dot"></i> Escrituras</span></div></section>
-      <footer class="page-footer"><span>Atlas · Proyecto de Base de Datos II</span><span>Heap · Sequential · B+ · Extendible Hashing</span></footer>
-    </div>
-  </main>
-  <dialog id="import-dialog" aria-labelledby="import-title">
-    <form id="import-form">
-      <div class="dialog-heading"><span class="eyebrow">NUEVA TABLA</span><h2 id="import-title">Importar archivo CSV</h2><p>Crea una tabla a partir de un archivo con encabezados.</p></div>
-      <label class="form-field" for="csv-file">Archivo CSV<input id="csv-file" type="file" accept=".csv,text/csv,text/tab-separated-values" required><small>UTF-8 · hasta 256 MB · primera fila con nombres de columnas</small></label>
-      <label class="form-field" for="csv-table">Nombre de la tabla<input id="csv-table" type="text" pattern="[A-Za-z_][A-Za-z0-9_]*" maxlength="128" placeholder="mis_productos" autocomplete="off" required><small>Letras, números y guiones bajos. Debe comenzar por una letra o guion bajo.</small></label>
-      <div class="form-grid">
-        <label class="form-field" for="csv-limit"><span>Límite de filas <span class="optional">opcional</span></span><input id="csv-limit" type="number" min="1" step="1" placeholder="Todas las filas"><small>Importa como máximo esta cantidad.</small></label>
-        <label class="form-field" for="csv-organization">Organización<select id="csv-organization"><option value="HEAP">Heap</option><option value="SEQUENTIAL">Sequential</option></select></label>
-        <label class="form-field" for="csv-delimiter">Separador<select id="csv-delimiter"><option value="auto">Detectar automáticamente</option><option value="comma">Coma (,)</option><option value="semicolon">Punto y coma (;)</option><option value="tab">Tabulación</option></select></label>
+    <div class="page-heading"><div><p class="eyebrow" id="section-kicker">DESCUBRIMIENTO MULTIMODAL</p><h1 id="page-title">Encuentra lo que tienes<br>en mente<span class="purple">.</span></h1><p class="intro" id="page-intro">Una idea, una imagen o un lugar. Tres formas de explorar el mismo catálogo.</p></div><div class="collection-count"><strong id="product-count">—</strong><span>productos reales<br>para explorar</span><div class="mini-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
+    <div id="error" class="notice error" role="alert" hidden></div>
+    <section id="search-section">
+      <form id="search-form" class="search-card">
+        <div class="search-main"><span class="search-icon">⌕</span><label class="sr-only" for="search">Descripción o consulta textual</label><input id="search" placeholder="Prueba “blue shirt”, “black shoes” o “ropa”…" autocomplete="off"><label class="upload-button" for="image-upload" title="Buscar con una imagen"><span>▧</span> Subir imagen</label><input id="image-upload" type="file" accept="image/jpeg,image/png,image/webp" hidden><button class="primary" id="search-button" type="submit">Buscar <span>↗</span></button></div>
+        <div class="search-options"><div class="mode-group"><label for="mode">Buscar con</label><select id="mode"><option value="text">Texto · TF-IDF</option><option value="boolean">Texto · Booleano</option><option value="ivf">Imagen · ResNet + IVF</option><option value="bovw">Imagen · SIFT + BoVW</option><option value="exact">Imagen · k-NN exacto</option></select></div><div class="filter-field"><label for="max-price">Precio máximo</label><div class="price-input"><span>S/</span><input id="max-price" type="number" min="0" max="100000" step="1" placeholder="Sin límite"></div></div><div class="filter-field probes"><label for="probes">IVF probes</label><select id="probes"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option><option>50</option><option>100</option></select></div><label class="nearby"><input id="nearby" type="checkbox"><span>Cerca de mí</span></label><div class="filter-field radius-field"><label for="radius">Radio (km)</label><input id="radius" type="number" min="0" max="20000" step="0.5" value="5"></div></div>
+      </form>
+      <div id="reference" class="reference" hidden><img id="reference-preview" alt="Imagen de consulta"><div><span class="eyebrow">IMAGEN DE REFERENCIA</span><strong id="reference-name"></strong><span class="muted">Compara ResNet, BoVW y búsqueda exacta con la misma imagen.</span></div><button id="clear-reference" aria-label="Quitar imagen de referencia">✕</button></div>
+      <div class="category-row" id="categories" aria-label="Filtrar por categoría"><button class="chip active" data-category="">Todos los productos</button><button class="chip" data-category="Apparel">Ropa</button><button class="chip" data-category="Footwear">Calzado</button><button class="chip" data-category="Accessories">Accesorios</button><button class="chip" data-category="Personal Care">Cuidado personal</button></div>
+    </section>
+    <div class="content-layout" id="results-layout">
+      <div class="results-main">
+        <div class="results-heading"><div><h2 id="results-title">El catálogo, a tu alcance</h2><span id="result-count" class="muted">Cargando productos…</span></div><div class="view-switch" aria-label="Vista de resultados"><button class="active" data-results-view="grid" aria-label="Ver tarjetas">▦</button><button data-results-view="map" aria-label="Ver mapa">◎</button></div></div>
+        <div id="product-grid" class="product-grid" aria-live="polite"></div>
+        <div id="empty" class="empty" hidden><span>⌕</span><h3>No encontramos coincidencias</h3><p>Prueba otros términos o amplía los filtros de precio y distancia.</p></div>
+        <div id="map-panel" hidden><div id="map"></div><div class="map-caption"><span class="status-dot"></span><span>Haz clic en el mapa para mover el centro de búsqueda. Ubicaciones sintéticas en Lima.</span><span id="map-center"></span></div></div>
+        <div class="dataset-note"><span>ⓘ</span><p>Imágenes y etiquetas de Fashion Product Images. Precios y tiendas son sintéticos para evaluar los filtros. Las recomendaciones no representan inventario comercial.</p></div>
       </div>
-      <p class="import-hint">Los tipos se detectan con las filas seleccionadas. Los nombres se adaptan a SQL y se agrega una clave <code>_row_id</code>. Los campos vacíos y los códigos con ceros iniciales se conservan como texto.</p>
-      <p id="import-error" class="form-error" role="alert"></p>
-      <div id="import-progress" hidden role="status"><progress aria-label="Importación en curso"></progress><p>Importando archivo… Las cargas grandes pueden tardar unos minutos.</p></div>
-      <div class="dialog-actions"><button id="import-cancel" type="button" class="secondary-button">Cancelar</button><button id="import-submit" type="submit" class="primary-button">Importar y crear tabla</button></div>
-    </form>
-  </dialog>
-  <script type="module" src="src/app.js"></script>
+      <aside class="telemetry" aria-label="Métricas de la consulta">
+        <div class="telemetry-heading"><span class="pulse"></span><p class="eyebrow">MOTOR EN TIEMPO REAL</p></div><h2>La búsqueda,<br>por dentro.</h2><p class="muted small">Cada resultado deja una ruta medible en disco.</p>
+        <div class="latency"><strong id="latency">—</strong><span>ms</span><p>tiempo de ejecución</p></div>
+        <div class="io-grid"><div><span class="metric-icon">↙</span><strong id="reads">—</strong><span>bloques leídos</span></div><div><span class="metric-icon">↗</span><strong id="writes">—</strong><span>bloques escritos</span></div></div>
+        <div class="io-detail"><span>Índices <strong id="index-reads">—</strong></span><span>Tabla de datos <strong id="table-reads">—</strong></span><span>Multimedia <strong id="blob-reads">—</strong></span></div>
+        <div class="plan-heading"><p class="eyebrow">PLAN EJECUTADO</p><span id="approximate" class="plan-tag">—</span></div><ol class="pipeline" id="pipeline"><li>Ejecuta una búsqueda</li></ol><p class="metric-note">Lecturas reales del gestor. No equivalen a fallos de caché del sistema operativo. Las imágenes de las tarjetas se cargan por separado.</p>
+      </aside>
+    </div>
+    <section id="sql-panel" hidden>
+      <div class="sql-tools"><label for="sql-example">Ejemplos</label><select id="sql-example"><option value="text">Ranking textual</option><option value="boolean">Booleano + precio</option><option value="spatial">Radio geográfico</option><option value="probes">Configurar IVF</option><option value="relational">B+ por rango</option></select><a href="/sql.html">Cliente relacional completo ↗</a></div>
+      <label class="sr-only" for="sql-input">Consulta SQL</label><textarea id="sql-input" spellcheck="false"></textarea><div class="sql-actions"><span>Una sentencia por ejecución · Ctrl / ⌘ + Enter</span><button id="run-sql" class="primary">Ejecutar consulta ↗</button></div><div id="sql-message" role="status"></div><div class="sql-table-wrap"><table id="sql-table"></table></div><pre id="sql-plan"></pre>
+    </section>
+    <section id="benchmarks-panel" hidden><div class="benchmark-intro"><span class="pill">EVIDENCIA REPRODUCIBLE</span><p>Mediciones del motor sobre archivos en disco. Consulta las tablas, las curvas y los CSV en el repositorio.</p></div><div id="benchmark-content"></div></section>
+    <footer><span>ATLAS / CS2042</span><span>Construido desde las páginas. Diseñado para explorar.</span><a href="/docs" target="_blank" rel="noreferrer">Documentación API ↗</a></footer>
+  </main>
+</div>
 </body>
 </html>

@@ -1,274 +1,163 @@
-# Atlas · Motor relacional en disco
+# Atlas · Motor multimodal en disco
 
-Entregable 1 de Base de Datos II (CS2042). El repositorio original se completó con páginas binarias, Heap, Sequential, B+ multinivel, Extendible Hashing, SQL, FastAPI y un cliente web. Las tablas y los índices se implementan con `seek`, `read`, `write` y `struct`.
+**Entregable 2 · Base de Datos II (CS2042), 2026-II**
 
-## Ejecutar el proyecto
+Un recomendador de productos con **R-Tree, índice invertido, BoVW e IVF implementados desde cero sobre páginas binarias de 4 KB**. Integra el Heap, B+, Hash y SQL del entregable 1. La aplicación compara búsqueda por texto, imagen y ubicación y muestra el costo real de cada consulta.
 
-Con las dependencias instaladas y el entorno virtual activo, inicia el proyecto desde la raíz:
+![Atlas: catálogo multimodal](docs/images/catalog.png)
 
-```powershell
-python run.py
+**Equipo:** Ivan Alonso Rodriguez Perez · Yacira Nicol Campoverde San Martín · Jorge Armando Martinez Palomino · Leonardo Alberto Montesinos Damian. **Docente:** Percy Lovon Ramos.
+
+## Ejecutar todo en un paso
+
+Desde la raíz, con **Python 3.12** instalado e internet en la primera preparación:
+
+```bash
+python setup.py --full
 ```
 
-Para preparar el entorno por primera vez:
+El comando crea `.venv`, instala dependencias, descarga un shard de Fashion Product Images (136 MB) y los pesos ResNet-18 (45 MB), extrae características de 10100 imágenes, construye la colección de 10000 productos e inicia API + frontend. La instalación de PyTorch añade su propia descarga; reserva aproximadamente 3 GB libres. La primera preparación tarda varios minutos según el equipo. Conserva datos y características ya preparados.
 
-Requiere Python 3.10 o posterior; el entorno verificado usa Python 3.12.14. `requirements-lock.txt` registra las versiones exactas de esa validación. Ejecuta los comandos desde la raíz del repositorio. No se necesita Node para usar el sistema.
+Abre **http://127.0.0.1:8000**. Documentación de la API: **http://127.0.0.1:8000/docs**. Detener: Ctrl+C. No abras el HTML como archivo.
+
+Para los siguientes inicios:
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe data/create_demo.py
 .venv\Scripts\python.exe run.py
 ```
 
-Abre **http://127.0.0.1:8000**. El mismo servidor entrega el frontend y la API; no abras `frontend/index.html` directamente. La documentación HTTP está en **http://127.0.0.1:8000/docs**. Detén el servidor con Ctrl+C.
+En Linux/macOS: `.venv/bin/python run.py`. Para preparar sin iniciar: `python setup.py --full --no-start`. Para usar dependencias ya instaladas: `--skip-install`. Otro puerto: `python run.py --port 8001`. Otro directorio: `python run.py --data-dir RUTA`.
 
-En Linux/macOS usa `.venv/bin/python` en lugar de `.venv\Scripts\python.exe`. Con un entorno activo, todos los ejemplos se reducen a `python ...`.
+En el espacio local donde se desarrolló esta entrega, `.venv` y el catálogo ya están preparados. En una clonación nueva deben regenerarse: los datos masivos y los pesos no están en Git.
 
-En esta copia local ya se instaló y verificó `.venv`, y `data/database/` contiene `products` con 500000 filas y `products_demo`. Se puede iniciar directamente con `.venv\Scripts\python.exe run.py`. Para repetir la carga completa, indique una tabla o directorio nuevo, por ejemplo `--data-dir data/otra_carga`. El comando `python run.py --data-dir RUTA --port 8001` permite elegir otro directorio y puerto. Usa un solo proceso escritor: detén el backend antes de importar al mismo directorio.
+## Qué probar
 
-## Importar un CSV desde el navegador
+1. Buscar `blue shirt`, `black shoes` o `ropa` por texto.
+2. Elegir **Texto · Booleano** y buscar `black AND shoes AND NOT women`.
+3. Fijar precio máximo y categoría; observar B+/Hash en el plan.
+4. Pulsar **↗** en una tarjeta o **Subir imagen**. Comparar **ResNet + IVF**, **SIFT + BoVW** y **k-NN exacto** con la misma referencia.
+5. Variar `probes`: menos listas reducen lecturas, con posible pérdida de recall.
+6. Abrir **Mapa de tiendas**, activar cercanía y mover el centro con un clic. **Ubicación · k-NN** devuelve los más cercanos dentro del radio y filtros.
+7. Ejecutar los ejemplos de **Consola SQL** y revisar **Experimentos**.
 
-Pulsa **Importar CSV**, selecciona el archivo y escribe el nombre de la nueva tabla. El **límite de filas es opcional**: vacío importa todas; con un número importa como máximo esa cantidad, aunque el archivo tenga menos. Puedes elegir Heap o Sequential y detectar el separador o indicar coma, punto y coma o tabulación.
+Las imágenes, títulos y categorías son reales. **Precios y ubicaciones de tiendas son sintéticos**, reproducibles con semilla 2026, porque el dataset no contiene esos campos. Las descripciones concatenan atributos originales y etiquetas de categoría en español. La interfaz lo indica; no representa inventario comercial. Las teselas del mapa y las fuentes web requieren internet; los índices, las imágenes y la API residen localmente.
 
-El CSV debe tener encabezados y codificación UTF-8 (con o sin BOM); el límite de subida es 256 MB. Los nombres se normalizan a identificadores SQL (por ejemplo, `Nombre del artículo` pasa a `nombre_del_articulo`). Se rechazan encabezados vacíos o que generen nombres repetidos. Las columnas aparecen en el explorador al completar la importación.
+## Entregables y evidencia
 
-El motor determina `INT`, `FLOAT` y `CHAR(n)` leyendo todas las filas seleccionadas. Los códigos con ceros iniciales, valores vacíos y columnas con mezcla de números y texto se conservan como texto. Las longitudes CHAR se calculan en bytes UTF-8. Se agrega `_row_id INT PRIMARY KEY` con valores consecutivos desde 1, conservando las columnas originales; así también se pueden importar CSV sin una clave única. El registro completo debe caber en una página del motor.
+- [Informe técnico PDF](informe/main.pdf) y [fuente LaTeX](informe/main.tex), con los cuatro integrantes, diagramas, formatos físicos, tablas, gráficas, análisis y límites.
+- [Matriz de requisitos](docs/TRAZABILIDAD.md), [arquitectura](docs/ARQUITECTURA.md) y [SQL/API multimodal](docs/SQL_P2.md).
+- [Guion de sustentación de 7-8 minutos](docs/SUSTENTACION.md), con una sección para cada integrante. **Queda a cargo del equipo grabar su participación real y añadir el enlace del video a la entrega del curso.**
+- [CSV, gráficas y verificaciones P2](benchmarks/p2/results), incluyendo los [planes EXPLAIN de PostgreSQL](benchmarks/p2/results/exp6_postgres_plans.json).
+- [Procedencia de datos y dependencias](docs/FUENTES.md).
 
-La carga lee el archivo por bloques y realiza dos pasadas sin guardar todas las filas en RAM. Primero valida e infiere el esquema y después escribe mediante `TableStorage` y los archivos del motor. La nueva tabla se publica en el catálogo al finalizar. Los errores controlados descartan la carga temporal y una tabla existente se conserva. No hay recuperación transaccional ante caída del proceso durante la publicación de archivos.
+El motor se validó con **10000 productos**, **100 imágenes de consulta fuera del índice**, **20000 textos** en el experimento 6 y hasta **100000 puntos** en el experimento 5. Los resultados de P1 en `benchmarks/results` se conservan como evidencia heredada y no se presentan como nuevas mediciones de P2.
 
-Al terminar se muestra el número de filas importadas y queda preparado `SELECT * FROM nombre_tabla;` en el editor. El I/O reportado cuenta las páginas binarias creadas y escritas por el motor, excluyendo la subida y la lectura del CSV; el tiempo incluye la inferencia y la carga en el servidor. El importador de productos por consola sigue disponible con su esquema específico.
+| Comparación real | Resultado |
+|---|---:|
+| Precision@10 · SIFT/BoVW | 0.295 |
+| Precision@10 · ResNet-18 + IVF, probes=5 | 0.688 |
+| Recall@10 · IVF, probes=5 | 0.971 |
+| Recall@10 · IVF, probes=100 | 1.000 |
 
-## Dataset real: products-500000.csv
+Relevancia visual = misma etiqueta `articleType`. Recall = coincidencia con k-NN exacto en el mismo corpus. Los tiempos dependen de hardware y caché; consultar CSV e informe para medias, dispersión y condiciones.
 
-Se inspeccionó el archivo proporcionado: **500 000 filas**, 90 764 217 bytes, claves `Index` únicas y ascendentes de 1 a 500 000. `Index` se convierte en `product_id`; `Added Date` en `added_date` y `Internal ID` en `internal_id`. No se presume una fuente externa distinta del archivo recibido.
+## Índices propios e integración P1
 
-El importador busca el CSV en `data/raw/`, la raíz del proyecto y la carpeta Descargas del usuario. También admite una ruta explícita:
+| Subsistema | Implementación |
+|---|---|
+| Almacenamiento | `DiskManager`, páginas 4096, Heap de P1, RID; JPEG en cadenas de blobs |
+| Espacial | R-Tree multinivel, mínima ampliación, Linear Split, ventana, radio refinado y k-NN con MINDIST |
+| Textual | Snowball, stoplists ES/EN; `vocab.dic`, `postings.inv`, normas L2; mezclas AND/OR/AND-NOT y TF-IDF/coseno |
+| Visual clásico | SIFT 128D, K-Means propio, 128 palabras visuales, índice invertido TF-IDF |
+| Denso | ResNet-18 ImageNet 512D; exacto coseno/L2 e IVF Flat con directorio y listas paginadas |
+| Híbrido | B+ precio + Hash categoría + R-Tree/texto + ranking; plan e I/O separado de tabla/índice/blob |
+| API y web | FastAPI, cliente JS, Leaflet local, carga de imágenes, consola y experimentos |
 
-```powershell
-.venv\Scripts\python.exe data/load_products.py --csv "C:\Users\USER\Downloads\products-500000.csv" --limit 500000
+No se utiliza una base externa, ORM o biblioteca de índices para la aplicación. **PostgreSQL solo existe en el benchmark 6**. OpenCV, NLTK y PyTorch extraen/transforman características; no gestionan almacenamiento. NumPy implementa operaciones numéricas del K-Means propio.
+
+La base P1 proviene de [ArmandoPal/BD2_proyecto](https://github.com/ArmandoPal/BD2_proyecto), commit `1634a747b97d71bea83fe02f00d18b6ef14028f0`. Se conserva su historial Git y su [documentación original](docs/ENTREGABLE_1_HEREDADO.md), que describe el contexto de esa fase y puede mencionar archivos locales no incluidos en esta copia.
+
+## Pruebas
+
+Con el entorno virtual activo:
+
+```bash
+python -m pytest backend/tests -q
+python tools/validate_multimodal.py
 ```
 
-Cargas parciales independientes, con nombres distintos para no sobrescribir tablas:
+La suite verifica persistencia, splits recursivos, duplicados, merges booleanos contra conjuntos, coseno contra una fórmula independiente, IVF contra exacto, filtros híbridos, SQL, errores de API, límites geográficos y regresiones del motor P1. La evidencia de la última ejecución está en `benchmarks/p2/results/tests.xml`. La validación real comprueba todos los RID y 100 JPEG después de reabrir los archivos.
 
-```powershell
-.venv\Scripts\python.exe data/load_products.py --limit 1000 --table products_1000
-.venv\Scripts\python.exe data/load_products.py --limit 10000 --table products_10000
-.venv\Scripts\python.exe data/load_products.py --limit 100000 --table products_100000
+QA de navegador opcional, con Playwright y Chrome instalados: `node tools/check_multimodal.cjs`. Variables opcionales `PLAYWRIGHT_MODULE`, `CHROME_PATH`, `BD2_URL`. El resultado se guarda en `frontend_validation.json`. CI ejecuta las pruebas unitarias y HTTP sin descargar el corpus ni los pesos.
+
+## Repetir experimentos 5-8
+
+Con Docker Desktop/Engine en funcionamiento:
+
+```bash
+docker compose --profile benchmark up -d postgres
+python -m benchmarks.p2.run_all
 ```
 
-Para Sequential e índices públicos:
+La conexión local de referencia usa `127.0.0.1:55432`, base/usuario `atlas_bench`, contraseña **de desarrollo** `atlas_bench_local`. No es un servicio de producción. Los scripts actúan sobre su tabla de benchmark `atlas_p2_bench_docs`.
 
-```powershell
-.venv\Scripts\python.exe data/load_products.py --limit 10000 --table products_seq --organization SEQUENTIAL --indexes BTREE HASH
+Por separado:
+
+```bash
+python -m benchmarks.p2.spatial
+python -m benchmarks.p2.textual
+python -m benchmarks.p2.visual
 ```
 
-Opciones: `--data-dir`, `--table`, `--organization HEAP|SEQUENTIAL`, `--page-size 1024|2048|4096|8192`, `--indexes BTREE HASH`. Una tabla ya existente produce un error y se conserva. Si una importación falla, sus filas previas permanecen; usa otra tabla o directorio para repetirla.
+La opción `--quick` escribe en `benchmarks/p2/smoke-results`, sin sobrescribir la evidencia completa. `--skip-postgres` permite una prueba parcial y se declara como tal; el informe final exige resultados GIN. Las ejecuciones completas actualizan los CSV y PNG versionados. Después, recompila el informe.
 
-La carga usa **CSV → RecordSerializer → TableStorage → Heap/Sequential → Page → DiskManager**, manteniendo también los índices. No precalcula un archivo binario externo ni carga el CSV completo en memoria. Cada tabla tiene un Hash privado para validar la PRIMARY KEY; su costo está incluido en las métricas de importación. El informe `TABLA.import.json` queda junto a sus archivos.
+Los contadores de Atlas son transferencias de páginas de **4 KB**, no fallos de caché del SO. PostgreSQL reporta shared hit/read de **8 KB** por separado. Su ranking es `ts_rank_cd`, distinto de TF-IDF; no se equipara su relevancia. GIN usa los mismos tokens con configuración `simple` y SeqScan desactivado para aislar el índice. Los planes completos quedan en JSON.
 
-Esquema de 394 bytes por registro:
+## Inspeccionar páginas y compilar informe
 
-| Campo | Tipo | Campo | Tipo |
-|---|---|---|---|
-| product_id | INT | name | CHAR(80) |
-| description | CHAR(100) | brand | CHAR(50) |
-| category | CHAR(40) | price | FLOAT |
-| currency | CHAR(3) | stock | INT |
-| ean | CHAR(15) | color | CHAR(25) |
-| size | CHAR(15) | availability | CHAR(15) |
-| added_date | CHAR(15) | internal_id | CHAR(12) |
-
-INT y FLOAT ocupan 8 bytes. CHAR(n) limita **bytes UTF-8**, no caracteres. EAN se conserva como texto, incluyendo ceros iniciales. Los valores demasiado largos se rechazan; no se truncan silenciosamente.
-
-## SQL disponible
-
-Una sentencia por solicitud; identificadores sin comillas e insensibles a mayúsculas, literales de texto con comillas simples. Se exige exactamente una PRIMARY KEY simple.
-
-```sql
-CREATE TABLE empleados (
-    id INT PRIMARY KEY,
-    nombre CHAR(30),
-    dept CHAR(20),
-    salario FLOAT
-) USING HEAP;
-
-INSERT INTO empleados VALUES (101, 'Ada Lovelace', 'Analytics', 5200.0);
-SELECT * FROM empleados WHERE id = 101;
-CREATE INDEX idx_emp_id ON empleados(id) USING BTREE;
-SELECT nombre, salario FROM empleados WHERE id >= 100 AND id <= 500;
-CREATE INDEX hash_emp_id ON empleados(id) USING HASH;
-DELETE FROM empleados WHERE id = 101;
-DELETE FROM empleados WHERE salario < 1000 AND dept = 'Analytics';
-DELETE FROM empleados;
-DROP TABLE empleados;
+```bash
+python tools/inspect_page.py data/database/productos.bin --page 1
+python tools/inspect_multimodal.py data/database/multimodal/geo.idx --page 0
+python tools/inspect_multimodal.py data/database/multimodal/text/vocab.dic --page 1
+python tools/inspect_multimodal.py data/database/multimodal/ivf/lists.ivf --page 1
+python tools/build_p2_report.py
 ```
 
-También se admite `USING SEQUENTIAL`, SELECT sin WHERE, proyección de columnas, operadores `=`, `<`, `>`, `<=`, `>=`, `!=`, `<>` y predicados combinados con AND. Una comilla literal se escribe `'O''Brien'`. No hay JOIN, UPDATE, OR, agregados, NULL ni SQL completo.
+El informe necesita Tectonic o `pdflatex` en PATH, o `--compiler RUTA`. Las tablas se generan desde CSV; el PDF no contiene cifras escritas manualmente. Salidas: `informe/main.pdf` y copia en `output/pdf/entregable_2_atlas.pdf`.
 
-`DELETE FROM tabla WHERE ...` elimina todas las filas que cumplen el filtro y actualiza los índices, incluido el de PRIMARY KEY. `DELETE FROM tabla` vacía la tabla y conserva su esquema e índices; la paginación no limita los borrados. `DROP TABLE tabla` elimina del catálogo la tabla y borra sus archivos de datos, overflow e índices (incluidos los directorios Hash). Después se puede crear otra tabla con el mismo nombre. Una tabla inexistente produce un error. Los ejemplos usan la tabla seleccionada en el explorador. «Ejemplos rápidos» prepara consultas, búsquedas por clave y rango, índices, inserciones y borrados con los nombres y tipos de esa tabla. Ajusta los valores de ejemplo antes de ejecutarlos, especialmente la nueva PRIMARY KEY al insertar. Los nombres de índices y de tablas demo evitan colisiones con el catálogo.
+## Despliegue con Docker
 
-El planificador usa índices públicos: igualdad → `IndexScan`; rango con B+ → `IndexRangeScan`; resto → `SeqScan`. Si B+ y Hash aplican a igualdad, prefiere Hash. El índice privado de PRIMARY KEY no se utiliza para seleccionar filas. En Sequential, `SeqScan` puede usar búsqueda binaria y recorrido acotado del archivo ordenado.
+Primero prepara el dataset con `python setup.py --full --no-start`. Después:
 
-## Panel del plan de ejecución
+```bash
+docker compose up --build -d atlas
+```
 
-El panel **Plan de ejecución**, debajo de **Resultados**, representa los operadores en orden de ejecución: recorrido completo o acceso a índice, recuperación por RID, filtro, proyección y resultados; para `DELETE`, muestra el borrado y el mantenimiento de índices. En Sequential distingue el recorrido acotado por la PRIMARY KEY del recorrido completo.
+Abre `http://127.0.0.1:8000`. El contenedor monta `data/database` y `.cache/torch`, usa PyTorch CPU y conserva los datos fuera de su sistema de archivos. Detén cualquier servidor previo que use el puerto 8000. Para detener servicios: `docker compose --profile benchmark stop`. El despliegue documentado es local; no se presenta GitHub como hosting del backend.
 
-- **Ejecutar consulta** muestra el plan real, las filas examinadas, filtradas y devueltas o eliminadas, y las métricas totales de la operación.
-- El plan conserva el SQL al que corresponde, la tabla, el índice y el motivo de selección. Se puede plegar el panel. Una consulta fallida retira el plan anterior.
-
-Los tiempos y el I/O son totales por operación; no se atribuyen porcentajes de costo o tiempos a operadores individuales. La elección sigue las reglas del planificador, sin un optimizador basado en estadísticas.
-
-## API y métricas
-
-- `POST /api/query`: `{"sql":"SELECT * FROM products WHERE product_id = 500;", "offset":0, "limit":100}`.
-- `POST /api/explain`: `{"sql":"SELECT * FROM products WHERE product_id = 500;"}`. Devuelve el plan sin ejecutar; también admite DELETE.
-- `POST /api/tables/import-csv?table_name=mi_tabla&limit=1000&organization=HEAP&delimiter=auto`: cuerpo binario del CSV (`Content-Type: text/csv`). Omitir `limit` importa todas las filas. Devuelve métricas, esquema y correspondencia de encabezados.
-- `GET /api/tables`: tablas, columnas, organización, tamaño de página e índices, incluidos los de integridad marcados como internos.
-- `POST /api/tables/reorganize`: `{"table_name":"products_seq"}`. Reorganiza principal/overflow y reconstruye todos los índices.
-- `GET /api/health`: disponibilidad del backend.
-
-Las respuestas de consultas incluyen `execution_plan`, `rows`, `columns`, `total_rows`, `affected_rows`, `access_path`, `index_name`, `disk_reads`, `disk_writes`, `parse_time_ms` y `exec_time_ms`. La respuesta contiene como máximo 1000 filas. El total se cuenta recorriendo los candidatos; cambiar de página ejecuta de nuevo la consulta.
-
-**Qué se cuenta:** llamadas completadas de lectura/escritura de páginas, incluidas páginas de metadata y asignaciones. El catálogo JSON, aperturas de archivos, `stat`, `rename` y `truncate` no se contabilizan como páginas. No son estimaciones ni mediciones de fallos de caché del SO. Python usa archivos sin buffering, pero el sistema operativo puede mantener caché. No se fuerza `fsync` por escritura.
-
-El contador se reinicia por consulta. Las búsquedas por RID usan un buffer local de hasta 32 páginas de datos, vacío al empezar; las transferencias evitadas no suman lecturas. En benchmarks de igualdad el índice y la recuperación del producto se miden juntos.
-
-## Estructura del código
+## Estructura
 
 ```text
-backend/
-├── core/                          Implementación real del gestor
-│   ├── storage/                   Almacenamiento físico
-│   │   ├── page.py                Cabecera, bitmap, slots y Page Layout
-│   │   ├── rid.py                 RID (página, slot)
-│   │   ├── disk_counter.py        Lecturas y escrituras realizadas
-│   │   ├── disk_manager.py        Offset y seek/read/write de páginas
-│   │   └── record_serializer.py   Serialización de tipos mediante struct
-│   ├── file_org/                  Organización de archivos
-│   │   ├── heap_file.py           Heap y Free-List persistente
-│   │   ├── sequential_file.py     Principal ordenado y reorganización
-│   │   └── overflow_manager.py    Registros enlazados por RID
-│   ├── indexes/                   Índices sobre archivos paginados
-│   │   ├── bplus_node.py          Nodos internos/hoja y formato binario
-│   │   ├── bplus_tree.py          Descenso, splits y hojas enlazadas
-│   │   ├── hash_bucket.py         Bucket y serialización
-│   │   ├── hash_directory.py      Directorio paginado
-│   │   └── extendible_hash.py     Hashing, doubling y split
-│   ├── catalog/                   Esquemas y coordinación tabla/índices
-│   │   ├── schema_manager.py      Metadata de tablas e índices
-│   │   ├── table_storage.py       Apertura, PRIMARY KEY y mantenimiento
-│   │   └── csv_importer.py        Inferencia e importación genérica de CSV
-│   └── query_engine/              Parser, Planner y Executor
-│       ├── tokenizer.py           Tokens del subconjunto SQL
-│       ├── query_models.py        ParsedQuery y predicados
-│       ├── parser.py              Gramática y validación sintáctica
-│       ├── planner.py             choose_access_path()
-│       ├── execution_plan.py      Operadores y descripción del plan
-│       └── executor.py            SQL, rutas y métricas
-├── api/routes.py                  API REST
-├── main.py                        FastAPI y frontend estático
-└── tests/                         Pruebas funcionales y de persistencia
-frontend/
-├── index.html                 Cuatro áreas del cliente
-└── src/
-    ├── styles.css             Diseño y adaptación de tamaño
-    ├── app.js                 Interacción, resultados y métricas
-    ├── csv-import.js          Formulario de importación
-    ├── execution-plan.js      Visualización del plan
-    ├── sql-examples.js        Plantillas basadas en el catálogo
-    └── services/api.js        Solicitudes reales a FastAPI
-data/
-├── products.py                Esquema y lectura streaming del CSV
-├── load_products.py           Importador del motor
-├── create_demo.py             Datos pequeños de demostración
-└── generate_dataset.py        Recorte opcional del CSV original
-benchmarks/
-├── common.py                  Fixtures físicos y exportación
-├── exp1_insercion_masiva.py
-├── exp2_busqueda_puntual.py
-├── exp3_busqueda_rango.py
-├── exp4_sensibilidad_bloque.py
-├── run_all.py                 Ejecución secuencial
-├── results/                   CSV y evidencia real
-└── plots/                     Gráficas de resultados
-informe/                       Fuentes LaTeX e informe PDF
-tools/                         Inspector, validación y compilación del informe
-run.py                         Inicio de todo el sistema
-EXPOSICION.md                  Mapa rápido de archivos y funciones
+backend/core/storage/       DiskManager, contador, páginas y RID de P1
+backend/core/file_org/      Heap / Sequential heredados
+backend/core/indexes/       B+ / Hash heredados
+backend/core/multimodal/    R-Tree, texto, IVF, características, SQL y colección P2
+backend/api/               API relacional + recomendador
+backend/tests/             Pruebas P1 y P2
+frontend/                  Catálogo P2; sql.html conserva cliente P1
+data/                      Descarga, extracción e importación reproducibles
+benchmarks/p2/             Experimentos 5-8 y evidencia real
+informe/                   LaTeX y PDF
+docs/                      Arquitectura, trazabilidad, fuentes y sustentación
+tools/                     QA, validación, inspectores y compilador del informe
 ```
 
-El flujo de la aplicación es **Frontend → API REST → `backend/core` → archivos binarios**. `backend/main.py` conecta FastAPI con `QueryExecutor`; el núcleo usa la biblioteca estándar y sus propios módulos, sin depender de FastAPI ni del frontend. El catálogo pertenece al núcleo porque define los esquemas y coordina las escrituras de tablas e índices. `data/` conserva los datasets e importadores y `benchmarks/` ejecuta los experimentos usando este mismo núcleo.
+## Límites declarados
 
-Las cinco carpetas que antes estaban directamente bajo `backend/` se trasladaron a `backend/core/`, incluidos sus auxiliares. Los imports usan `backend.core.storage`, `backend.core.file_org`, `backend.core.indexes`, `backend.core.catalog` y `backend.core.query_engine`; las rutas anteriores ya no existen. El formato de los archivos binarios, los endpoints y `python run.py` se mantienen.
-
-## Pruebas y validaciones
-
-```powershell
-.venv\Scripts\python.exe -m pytest backend/tests -q
-```
-
-La última ejecución aprobó **89 pruebas, con 0 fallos**. La suite verifica Page Layout, RID, contador, offset, tipos, Heap/Free-List, Sequential/overflow/reorganización, B+ multinivel y rangos, Hash/doubling, persistencia, SQL, planner, executor y API, incluidos DELETE masivos con mantenimiento de índices y DROP TABLE con recreación, importación genérica de CSV y planes reales o previos sin efectos sobre los datos. Las pruebas usan archivos temporales.
-
-La reorganización a `backend/core/` se verificó con las mismas 41 pruebas antes y después, los cuatro experimentos con 1000 productos y una prueba HTTP/navegador en un proceso nuevo. Esas comprobaciones se guardan en `output/qa/core-refactor/` (excluido de Git); no sustituyen los CSV ni las gráficas históricos. También se compararon la lógica Python y los hashes de los datos/evidencias existentes.
-
-La validación adicional `tools/validate_large_indexes.py` construye B+ y Hash sobre la carga de 500000 filas, los reabre y verifica todas las entradas B+ y 1002 búsquedas por índice.
-
-Para repetir las cuatro importaciones con comparación de cada registro después de reabrir, usa un directorio nuevo:
-
-```powershell
-.venv\Scripts\python.exe tools/validate_products.py --data-dir data/validation_nueva
-```
-
-`benchmarks/results/import_validation.json` registra las cuatro cargas verificadas (1000, 10000, 100000 y 500000). La carga de 500000 tardó 323.0 s en este equipo; incluye comprobación de PRIMARY KEY. Los tiempos dependen de hardware y caché.
-
-Inspector de archivos reales:
-
-```powershell
-.venv\Scripts\python.exe tools/inspect_page.py data/database/products.bin --page 0
-.venv\Scripts\python.exe tools/inspect_page.py data/database/products.bin --page 1
-```
-
-La página cero muestra metadata; la página uno muestra cabecera, slots y offsets reales. Para otros tamaños usa `--page-size 1024` (o el tamaño del archivo).
-
-## Cuatro benchmarks completos
-
-```powershell
-.venv\Scripts\python.exe -m benchmarks.run_all
-```
-
-También se ejecutan por separado:
-
-```powershell
-.venv\Scripts\python.exe benchmarks/exp1_insercion_masiva.py
-.venv\Scripts\python.exe benchmarks/exp2_busqueda_puntual.py
-.venv\Scripts\python.exe benchmarks/exp3_busqueda_rango.py
-.venv\Scripts\python.exe benchmarks/exp4_sensibilidad_bloque.py
-```
-
-Todos aceptan `--csv RUTA`. El experimento 1 usa N = 1000, 10000, 50000, 100000, 250000, 500000. B+ y Hash incluyen un Heap de registros completos más el índice; las otras variantes son tablas sin índice. El CSV ascendente favorece el Sequential y casi no genera overflow; el costo de reorganizar incluye reescribir a fill factor 0.75. Las pruebas con inserciones desordenadas sí fuerzan y verifican overflow.
-
-El experimento 2 usa N=100000 y 1000 consultas con semilla 42, devolviendo media y desviación estándar poblacional. El 3 usa selectividades 0.1%, 1%, 5%, 10% y 25%. Ambos cuentan la recuperación de registros y reutilizan un fixture físico, cuya carga queda fuera de la consulta medida. El 4 reconstruye un B+ con páginas de 1024, 2048, 4096 y 8192; aísla el índice y usa RID como etiquetas de prueba.
-
-Prueba corta opcional:
-
-```powershell
-.venv\Scripts\python.exe benchmarks/exp1_insercion_masiva.py --sizes 1000
-.venv\Scripts\python.exe benchmarks/exp2_busqueda_puntual.py --n 1000 --queries 20
-```
-
-**Estos comandos cortos sobrescriben los CSV/gráficas del mismo experimento.** Para conservar la evidencia completa, cópiala antes o vuelve a ejecutar los tamaños completos. Los fixtures quedan en `benchmarks/work/`, los datos tabulados en `benchmarks/results/` y las gráficas en `benchmarks/plots/`. Datos grandes y fixtures no se versionan; resultados y gráficas sí.
-
-
-
-## Límites conocidos
-
-- Un solo proceso escritor. El lock del backend no coordina procesos independientes.
-- Sin WAL, transacciones, rollback ni recuperación automática ante interrupción entre varias escrituras. La reorganización completa de tabla e índices no es atómica ante fallos.
-- El B+ elimina pares sin merge; el Hash no contrae su directorio ni recupera todas las páginas de colisión retiradas. Reconstruir índices recupera espacio.
-- Hash limita la profundidad global a 20 y encadena colisiones/claves repetidas. Las listas largas degradan el rendimiento.
-- Sequential se reorganiza explícitamente; el redondeo de slots puede producir una ocupación inferior al 75%, especialmente con páginas pequeñas.
-- El catálogo administra metadata en JSON; las tablas, árboles, buckets y directorios siempre usan páginas binarias.
-- El informe usa «Equipo del proyecto» porque no se proporcionaron integrantes. La grabación del video de exposición corresponde al equipo; se entrega el guion, no una grabación atribuida a personas.
-
-No se incluyen componentes del Entregable 2.
+- Colección multimodal de solo lectura después de publicarla. INSERT/DELETE/DROP se bloquean para mantener consistencia; las demás tablas conservan el CRUD P1. Reconstruye en otro directorio para cambiar el corpus.
+- Un proceso escritor, sin WAL ni transacciones. No coordinar dos servidores sobre los mismos archivos.
+- Construcción textual y entrenamiento en RAM; consultas paginadas y cachés acotadas. SPIMI no está implementado.
+- IVF 512D almacena un vector por página; su ocupación podría mejorar con otro formato.
+- Gramática SQL limitada, sin JOIN, UPDATE ni agregaciones. `SET ivf.probes` es global al proceso; `/search` acepta probes por petición.
+- El mapa usa ubicaciones sintéticas y distancia esférica. El benchmark de radio usa grados; la interfaz usa kilómetros.
+- Sin autenticación; ejecución por defecto en localhost. La publicación remota requiere configurar un entorno de hosting y seguridad apropiado.

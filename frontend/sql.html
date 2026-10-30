@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Atlas · BD II SQL Workspace</title>
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/"><span class="brand-icon">▤</span> atlas<span class="brand-tag">BD II</span></a>
+    <div class="workspace"><span class="workspace-icon">A</span><div>Proyecto relacional<small>Entregable 01 · almacenamiento en disco</small></div></div>
+    <div class="section-label">WORKSPACE</div>
+    <div class="nav-active"><span>⌘</span> Editor SQL <kbd>⌃ ↵</kbd></div>
+    <div class="explorer-heading"><span class="section-label">EXPLORADOR DE TABLAS</span><button id="refresh" class="icon-button" title="Actualizar tablas" aria-label="Actualizar tablas">↻</button></div>
+    <div id="tables" class="table-tree"><div class="muted">Cargando catálogo…</div></div>
+    <div class="sidebar-footer"><span class="dot"></span><div>Motor propio<small>Páginas binarias · RID · I/O real</small></div><span class="version">v1.0</span></div>
+  </aside>
+  <main>
+    <header class="topbar"><div><span class="muted">Workspace</span><span class="slash">/</span><strong>Editor SQL</strong></div><div id="connection" class="connection"><span class="dot"></span> Conectando</div></header>
+    <div class="content">
+      <div class="page-heading"><div><div class="eyebrow">CONSULTAS Y RENDIMIENTO</div><h1>SQL Workspace</h1><p>Explora tus datos y observa cómo los consulta el motor.</p></div><div class="heading-actions"><span class="course-badge">CS2042 <span>·</span> Base de Datos II</span><button id="import-open" class="secondary-button">↑ Importar CSV</button></div></div>
+      <section class="editor-card">
+        <div class="card-toolbar"><div class="editor-tab"><span class="sql-icon">⌘</span> Consulta SQL <span class="tab-dot"></span></div><div class="toolbar-right"><label class="sr-only" for="examples">Ejemplos SQL</label><select id="examples"><option value="">Ejemplos rápidos</option><option value="select">Consultar tabla</option><option value="point">Buscar por clave</option><option value="range">Consultar rango</option><option value="index">Crear índice B+</option><option value="hash">Crear índice Hash</option><option value="demo">Crear tabla demo</option><option value="insert">Insertar fila</option><option value="delete">Eliminar por clave</option><option value="deleteAll">Vaciar tabla</option><option value="drop">Eliminar tabla</option></select><button id="clear" class="text-button">Limpiar</button></div></div>
+        <div class="editor-body"><div id="line-numbers" aria-hidden="true">1</div><div class="code-area"><pre id="highlight" aria-hidden="true"></pre><textarea id="sql" aria-label="Consulta SQL" spellcheck="false" wrap="off" placeholder="Escribe una consulta SQL…"></textarea></div></div>
+        <div class="editor-footer"><span id="statement-info">Una sentencia a la vez <span>·</span> Ctrl + Enter para ejecutar</span><div class="editor-actions"><button id="run" class="primary-button"><span id="run-icon">▶</span><span id="run-label">Ejecutar consulta</span></button></div></div>
+      </section>
+      <div class="status-row"><div id="status" role="status"><span class="status-symbol">○</span> Listo para ejecutar</div><button id="reorganize" class="text-button" hidden>Reorganizar tabla</button></div>
+      <section class="metrics" aria-label="Plan de ejecución y métricas">
+        <article class="metric access"><span>RUTA DE ACCESO</span><strong id="access-path">—</strong><small id="index-name">El planner elegirá la ruta</small></article>
+        <article class="metric"><span><i class="read-dot"></i> DISK READS</span><strong id="disk-reads">—</strong><small>páginas leídas</small></article>
+        <article class="metric"><span><i class="write-dot"></i> DISK WRITES</span><strong id="disk-writes">—</strong><small>páginas escritas</small></article>
+        <article class="metric"><span>TIEMPO DE PARSEO</span><strong id="parse-time">—</strong><small>milisegundos</small></article>
+        <article class="metric"><span>TIEMPO DE EJECUCIÓN</span><strong id="exec-time">—</strong><small>milisegundos</small></article>
+      </section>
+      <section class="results-card">
+        <div class="results-heading"><div><span class="result-icon">▦</span><strong>Resultados</strong><span id="row-count" class="count-badge">0 filas</span></div><span id="result-note" class="muted">Los resultados aparecerán aquí</span></div>
+        <div id="results" class="results-scroll"><div class="empty-state"><div class="empty-icon">▤</div><h3>Tu próxima consulta comienza aquí</h3><p>Selecciona una tabla o ejecuta una sentencia SQL.<br>Los resultados y sus métricas provienen del motor en disco.</p></div></div>
+        <div class="results-footer"><span id="page-info">Sin resultados</span><div class="pagination"><label for="page-size">Filas por página</label><select id="page-size"><option>25</option><option selected>100</option><option>250</option></select><button id="previous" class="icon-button" disabled aria-label="Página anterior">‹</button><span id="page-number">1</span><button id="next" class="icon-button" disabled aria-label="Página siguiente">›</button></div></div>
+      </section>
+      <details id="execution-plan" class="plan-card" open>
+        <summary><strong>Plan de ejecución</strong><span id="plan-mode" class="count-badge">Sin plan</span></summary>
+        <div id="plan-content"><p class="plan-empty">Ejecuta una consulta para ver sus pasos y métricas.</p></div>
+      </details>
+      <section class="io-history"><div><strong>Actividad de I/O</strong><span>Últimas ejecuciones de esta sesión</span></div><div id="history" class="history-bars"><span class="muted">Ejecuta una consulta para comparar sus accesos.</span></div><div class="legend"><span><i class="read-dot"></i> Lecturas</span><span><i class="write-dot"></i> Escrituras</span></div></section>
+      <footer class="page-footer"><span>Atlas · Proyecto de Base de Datos II</span><span>Heap · Sequential · B+ · Extendible Hashing</span></footer>
+    </div>
+  </main>
+  <dialog id="import-dialog" aria-labelledby="import-title">
+    <form id="import-form">
+      <div class="dialog-heading"><span class="eyebrow">NUEVA TABLA</span><h2 id="import-title">Importar archivo CSV</h2><p>Crea una tabla a partir de un archivo con encabezados.</p></div>
+      <label class="form-field" for="csv-file">Archivo CSV<input id="csv-file" type="file" accept=".csv,text/csv,text/tab-separated-values" required><small>UTF-8 · hasta 256 MB · primera fila con nombres de columnas</small></label>
+      <label class="form-field" for="csv-table">Nombre de la tabla<input id="csv-table" type="text" pattern="[A-Za-z_][A-Za-z0-9_]*" maxlength="128" placeholder="mis_productos" autocomplete="off" required><small>Letras, números y guiones bajos. Debe comenzar por una letra o guion bajo.</small></label>
+      <div class="form-grid">
+        <label class="form-field" for="csv-limit"><span>Límite de filas <span class="optional">opcional</span></span><input id="csv-limit" type="number" min="1" step="1" placeholder="Todas las filas"><small>Importa como máximo esta cantidad.</small></label>
+        <label class="form-field" for="csv-organization">Organización<select id="csv-organization"><option value="HEAP">Heap</option><option value="SEQUENTIAL">Sequential</option></select></label>
+        <label class="form-field" for="csv-delimiter">Separador<select id="csv-delimiter"><option value="auto">Detectar automáticamente</option><option value="comma">Coma (,)</option><option value="semicolon">Punto y coma (;)</option><option value="tab">Tabulación</option></select></label>
+      </div>
+      <p class="import-hint">Los tipos se detectan con las filas seleccionadas. Los nombres se adaptan a SQL y se agrega una clave <code>_row_id</code>. Los campos vacíos y los códigos con ceros iniciales se conservan como texto.</p>
+      <p id="import-error" class="form-error" role="alert"></p>
+      <div id="import-progress" hidden role="status"><progress aria-label="Importación en curso"></progress><p>Importando archivo… Las cargas grandes pueden tardar unos minutos.</p></div>
+      <div class="dialog-actions"><button id="import-cancel" type="button" class="secondary-button">Cancelar</button><button id="import-submit" type="submit" class="primary-button">Importar y crear tabla</button></div>
+    </form>
+  </dialog>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
