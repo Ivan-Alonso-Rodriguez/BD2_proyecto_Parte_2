@@ -1,10 +1,12 @@
+import {createStoreMap} from './store-map.js';
+
 const $ = id => document.getElementById(id);
 const state = { category: '', rows: [], reference: null, file: null, objectUrl: null, center: [-12.10, -77.04], view: 'explore', resultView: 'grid', busy: false, serial: 0 };
 const names = {Apparel:'Ropa', Footwear:'Calzado', Accessories:'Accesorios', 'Personal Care':'Cuidado personal'};
 const money = new Intl.NumberFormat('es-PE', {style:'currency', currency:'PEN'});
 const number = new Intl.NumberFormat('es-PE');
 const escape = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let map, layers, circle;
+let map, mapLoading;
 
 async function api(path, options={}) {
   const response = await fetch(path, options);
@@ -74,7 +76,7 @@ async function search() {
       state.rows=[];
       $('product-grid').replaceChildren();
       $('result-count').textContent='Consulta no completada';
-      if (map) layers.clearLayers();
+      if (map) map.clear();
     }
   } finally {
     if (serial === state.serial) {
@@ -109,28 +111,28 @@ function setResultsView(view) {
   document.querySelectorAll('[data-results-view]').forEach(button=>button.classList.toggle('active',button.dataset.resultsView===view));
   if (view==='map') renderMap();
 }
-function renderMap() {
-  if (!window.L) {error('No se cargó Leaflet. Revisa los archivos frontend/vendor.');return;}
-  if (!map) {
-    map=L.map('map').setView(state.center,12);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {attribution:'&copy; OpenStreetMap &copy; CARTO',maxZoom:19}).addTo(map);
-    layers=L.layerGroup().addTo(map);
-    map.on('click', event=>{
-      state.center=[event.latlng.lat,event.latlng.lng];
-      $('nearby').checked=true;
-      search();
-    });
+async function renderMap() {
+  try {
+    if (!map) {
+      if (!mapLoading) mapLoading=api('/api/maps/config').then(config=>createStoreMap(
+        $('map'),config,state.center,center=>{
+          state.center=center;
+          $('nearby').checked=true;
+          search();
+        },message=>{
+          $('map-status').textContent=message;
+          $('map-status').hidden=!message;
+        }
+      )).catch(exception=>{mapLoading=null;throw exception;});
+      map=await mapLoading;
+    }
+  } catch(exception) {
+    $('map-status').textContent='No se pudo configurar el mapa: '+exception.message;
+    $('map-status').hidden=false;
+    return;
   }
-  map.invalidateSize();
-  layers.clearLayers();
-  for (const row of state.rows) {
-    const content=document.createElement('div');
-    const title=document.createElement('strong');title.textContent=row.titulo;content.append(title);
-    const price=document.createElement('p');price.textContent=money.format(row.precio);content.append(price);
-    L.circleMarker([row.lat,row.lon],{radius:7,color:'#fff',weight:2,fillColor:'#7760bc',fillOpacity:.9}).bindPopup(content).addTo(layers);
-  }
-  if (circle) map.removeLayer(circle);
-  if ($('nearby').checked) circle=L.circle(state.center,{radius:Number($('radius').value)*1000,color:'#8872be',fillOpacity:.07,weight:1,dashArray:'5 5'}).addTo(map);
+  if (state.resultView!=='map') return;
+  map.render(state.rows,state.center,$('nearby').checked?Number($('radius').value)*1000:null);
   $('map-center').textContent=`${state.center[1].toFixed(4)}, ${state.center[0].toFixed(4)}`;
 }
 const headings={explore:['DESCUBRIMIENTO MULTIMODAL','Encuentra lo que tienes<br>en mente<span class="purple">.</span>','Una idea, una imagen o un lugar. Tres formas de explorar el mismo catálogo.'],map:['BÚSQUEDA ESPACIAL','Más cerca de lo<br>que buscas<span class="purple">.</span>','Explora tiendas y filtra por radio. Cada punto se recupera desde un R-Tree en disco.'],sql:['CONSULTAS DECLARATIVAS','Del SQL a las<br>páginas en disco<span class="purple">.</span>','Consulta texto, precios y ubicaciones con el plan de ejecución a la vista.'],benchmarks:['EXPERIMENTACIÓN Y RENDIMIENTO','La evidencia detrás<br>de cada índice<span class="purple">.</span>','Datos medidos, consultas separadas y comparaciones reproducibles.' ]};

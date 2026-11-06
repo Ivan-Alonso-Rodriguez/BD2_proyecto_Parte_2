@@ -16,7 +16,11 @@ Desde la raíz, con **Python 3.12** instalado e internet en la primera preparaci
 python setup.py --full
 ```
 
+Si Windows abre Microsoft Store al usar `python` y el proyecto ya tiene `.venv`, ejecuta `.\.venv\Scripts\python.exe setup.py --full` desde la raíz del proyecto.
+
 El comando crea `.venv`, instala dependencias, descarga un shard de Fashion Product Images (136 MB) y los pesos ResNet-18 (45 MB), extrae características de 10100 imágenes, construye la colección de 10000 productos e inicia API + frontend. La instalación de PyTorch añade su propia descarga; reserva aproximadamente 3 GB libres. La primera preparación tarda varios minutos según el equipo. Conserva datos y características ya preparados.
+
+El descargador verifica tamaño, SHA-256 y metadatos Parquet antes de reutilizar el dataset. Si detecta una descarga o un `source.json` dañado, vuelve a descargarlo automáticamente; una descarga incompleta no reemplaza el archivo anterior.
 
 Abre **http://127.0.0.1:8000**. Documentación de la API: **http://127.0.0.1:8000/docs**. Detener: Ctrl+C. No abras el HTML como archivo.
 
@@ -41,6 +45,18 @@ En el espacio local donde se desarrolló esta entrega, `.venv` y el catálogo ya
 7. Ejecutar los ejemplos de **Consola SQL** y revisar **Experimentos**.
 
 Las imágenes, títulos y categorías son reales. **Precios y ubicaciones de tiendas son sintéticos**, reproducibles con semilla 2026, porque el dataset no contiene esos campos. Las descripciones concatenan atributos originales y etiquetas de categoría en español. La interfaz lo indica; no representa inventario comercial. Las teselas del mapa y las fuentes web requieren internet; los índices, las imágenes y la API residen localmente.
+
+Las tiendas sintéticas se distribuyen únicamente en sectores interiores de Lima, alejados de la costa, mediante `data/store_locations.py`. Para corregir una colección antigua, detén la API y ejecuta `python tools/repair_store_locations.py`. La utilidad conserva una copia de seguridad en `data/database/.location-backups`, modifica solo lon/lat y reconstruye el R-Tree manteniendo los RID, precios, imágenes y demás índices.
+
+## Mapa con API key de Google Maps
+
+1. En tu proyecto de Google Cloud, habilita Maps JavaScript API, configura la facturación y crea una API key siguiendo la [guía oficial](https://developers.google.com/maps/documentation/javascript/get-api-key).
+2. Copia `.env.example` a `.env` en la raíz y completa `GOOGLE_MAPS_API_KEY=tu_clave_real`.
+3. Reinicia con `.venv\Scripts\python.exe run.py` y recarga la página. Docker Compose también lee esa variable desde `.env`.
+
+La clave se configura fuera del código versionado; `.env` está excluido de Git. El navegador utiliza esta clave para cargar el SDK oficial. En Google Cloud, limita la clave a Maps JavaScript API y a sitios web; para este entorno local añade `http://127.0.0.1:8000/*` y `http://localhost:8000/*`. Una variable de entorno definida en el sistema tiene prioridad sobre `.env`.
+
+Si la clave está vacía, se utiliza OpenStreetMap con Leaflet y su atribución visible. El navegador solicita las teselas de `https://tile.openstreetmap.org/{z}/{x}/{y}.png` respetando su caché; no hay descarga masiva ni modo offline. Este uso interactivo sigue la [política del servicio de teselas de OpenStreetMap](https://operations.osmfoundation.org/policies/tiles/). La integración de Google no incluye una clave real: debe provenir de la cuenta del equipo. Con clave configurada, Google Maps muestra los productos, sus fichas y el radio de búsqueda; los resultados siguen recuperándose mediante el R-Tree propio. Los errores de clave, permisos o conexión aparecen junto al mapa sin borrar los resultados.
 
 ## Entregables y evidencia
 

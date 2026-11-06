@@ -11,6 +11,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from data.prepare_features import rows
+from data.store_locations import LOCATION_SEED, sample_store_location, location_metadata
 from backend.core.query_engine.executor import QueryExecutor
 from backend.core.catalog.table_storage import TableStorage
 from backend.core.storage.disk_counter import DiskCounter
@@ -51,6 +52,7 @@ def main():
     engine.execute("CREATE INDEX categoria_hash ON productos(categoria) USING HASH;")
     root.mkdir(parents=True, exist_ok=True)
     counter, rng, start = DiskCounter(), random.Random(2026), time.perf_counter()
+    location_rng = random.Random(LOCATION_SEED)
     geo = RTree(root / "geo.idx", counter)
     blobs = BlobStore(root / "images.blobs", counter)
     ids, documents, categories = [], [], set()
@@ -58,7 +60,7 @@ def main():
     with TableStorage(engine.schema_manager, table, counter) as storage:
         for i, row in enumerate(rows(args.source, n)):
             # Ubicaciones y precios sintéticos: no los provee el dataset original.
-            lon, lat = -77.04+rng.gauss(0, .065), -12.10+rng.gauss(0, .055)
+            lon, lat = sample_store_location(location_rng)
             price = round(rng.uniform(25, 500), 2)
             body = description(row)
             category = row["masterCategory"] or "Other"
@@ -90,6 +92,7 @@ def main():
     manifest = {"version": 2, "table": "productos", "n": n, "dimensions": 512, "clusters": math.isqrt(n),
                 "visual_words": args.words, "categories": sorted(categories), "model": info["model"],
                 "metadata_synthetic": ["precio", "lon", "lat"], "text_description": "concatenación de atributos originales y etiquetas de categoría en español",
+                "location_generation": location_metadata(),
                 "source": json.loads((Path(args.source).parent / "source.json").read_text()),
                 "build_seconds": time.perf_counter()-start, "build_io": counter.snapshot(),
                 "indexes": {"geo": {"kind": "RTREE", "column": "ubicacion"}, "text": {"kind": "INVERTED", "column": "cuerpo"}, "ivf": {"kind": "IVF", "column": "embedding"}}}

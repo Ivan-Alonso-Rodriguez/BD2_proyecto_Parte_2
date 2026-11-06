@@ -10,6 +10,7 @@ from backend.core.multimodal.paged import pack_rid
 from backend.core.multimodal.rtree import RTree
 from backend.core.multimodal.text import InvertedIndex
 from backend.core.multimodal.vector import IVFIndex
+from data.store_locations import LOCATION_MODEL, is_store_location
 
 
 def main():
@@ -38,6 +39,9 @@ def main():
         images+=1
     result={'records':len(records),'all_rids_match_heap_rtree_text_ivf':True,'images_verified':images,'ivf_full_probes_equals_exact':True,
             'dimensions':manifest['dimensions'],'source':manifest['source'],'synthetic_fields':manifest['metadata_synthetic']}
+    if manifest.get('location_generation',{}).get('model')==LOCATION_MODEL:
+        assert all(is_store_location(row['lon'],row['lat']) for row in records.values())
+        result['all_store_locations_inland']=True
     destination=Path('benchmarks/p2/results/dataset_validation.json')
     destination.write_text(json.dumps(result,indent=2,ensure_ascii=False),encoding='utf-8')
     print(json.dumps(result,indent=2))

@@ -2,6 +2,7 @@
 
 import argparse
 import os
+from pathlib import Path
 import uvicorn
 
 
@@ -12,7 +13,9 @@ def main():
     parser.add_argument("--data-dir", default="data/database")
     args = parser.parse_args()
     os.environ["BD2_DATA_DIR"] = args.data_dir
-    uvicorn.run("backend.main:app", host=args.host, port=args.port, workers=1)
+    env_file = Path(__file__).resolve().parent / ".env"
+    uvicorn.run("backend.main:app", host=args.host, port=args.port, workers=1,
+                env_file=str(env_file) if env_file.is_file() else None)
 
 
 if __name__ == "__main__":

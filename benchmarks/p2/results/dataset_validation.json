@@ -16,5 +16,6 @@
     "precio",
     "lon",
     "lat"
-  ]
+  ],
+  "all_store_locations_inland": true
 }

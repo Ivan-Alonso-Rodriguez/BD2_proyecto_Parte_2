@@ -33,7 +33,7 @@ const fs=require('node:fs');
   await page.waitForFunction(()=>!document.body.classList.contains('loading'));
   if(await page.locator('.product-card').count()!==12)throw Error('Carga de imagen sin resultados');
   await page.locator('[data-view=map]').click();
-  await page.locator('.leaflet-container').waitFor();
+  await page.locator('#map.leaflet-container, #map .gm-style').first().waitFor();
   await page.locator('#nearby').check();
   await page.waitForFunction(()=>!document.body.classList.contains('loading'));
   await page.screenshot({path:'output/qa/p2/map.png',fullPage:true});
