@@ -117,6 +117,148 @@ def test_api_filters_validation_and_real_image(collection):
         assert client.get('/api/multimodal/image/999').status_code==400
 
 
+def test_map_returns_complete_catalog_and_category_subsets(collection):
+    path,_=collection
+    with TestClient(create_app(path)) as client:
+        preview=client.post('/api/multimodal/search',json={'k':12}).json()
+        response=client.post('/api/multimodal/map',json={'k':12})
+        assert response.status_code==200
+        full=response.json()
+        assert len(preview['rows'])==12
+        assert len(full['rows'])==full['total_rows']==40
+        assert full['execution_plan']['result_scope']=='all_matches'
+        assert full['execution_plan']['steps'][-1]=='AllMatches'
+        assert full['disk_reads']==sum(x['disk_reads'] for x in full['io_breakdown'].values())
+        full_ids={r['id'] for r in full['rows']}
+        for category in ('Apparel','Footwear'):
+            filtered=client.post('/api/multimodal/map',json={'category':category,'k':12}).json()
+            expected={r['id'] for r in full['rows'] if r['categoria']==category}
+            assert {r['id'] for r in filtered['rows']}==expected
+            assert expected<=full_ids
+
+
+def test_catalog_pagination_first_middle_last_and_out_of_range(collection):
+    path,_=collection
+    with TestClient(create_app(path)) as client:
+        pages=[client.post('/api/multimodal/search',json={'k':12,'offset':offset}).json()
+               for offset in (0,12,24,36,48)]
+        assert [len(page['rows']) for page in pages]==[12,12,12,4,0]
+        assert all(page['total_rows']==40 and page['limit']==12 for page in pages)
+        assert [page['offset'] for page in pages]==[0,12,24,36,48]
+        assert [r['id'] for page in pages for r in page['rows']]==list(range(40))
+        assert all(page['execution_plan']['result_scope']=='page' for page in pages)
+        assert all(page['disk_writes']==0 for page in pages)
+        empty=client.post('/api/multimodal/search',json={'category':'absent','k':12}).json()
+        assert empty['total_rows']==0 and empty['rows']==[]
+        # Cambiar a mapa no debe heredar el desplazamiento de las tarjetas.
+        full=client.post('/api/multimodal/map',json={'k':12,'offset':36}).json()
+        assert len(full['rows'])==40 and full['offset']==0
+        for offset in (-1,1.5,1000001):
+            assert client.post('/api/multimodal/search',json={'offset':offset}).status_code==422
+
+
+@pytest.mark.parametrize('query',[
+    {'category':'Apparel','min_price':35,'max_price':65},
+    {'text':'red'},
+    {'mode':'boolean','text':'red AND NOT blue','category':'Apparel','max_price':65},
+    # Todos los términos tienen IDF cero; el booleano aún debe paginar sus coincidencias.
+    {'mode':'boolean','text':'cotton AND shirt'},
+    {'text':'cotton shirt'},
+    {'mode':'spatial','lon':-77.04,'lat':-12.10,'radius':2,'category':'Apparel'},
+    {'mode':'spatial_knn','lon':-77.04,'lat':-12.10,'radius':2,'min_price':35},
+    {'mode':'exact','reference_id':1,'category':'Apparel'},
+    {'mode':'ivf','reference_id':1,'probes':1,'max_price':60},
+])
+def test_pagination_preserves_filtered_ranking_and_total(collection,query):
+    path,_=collection
+    with TestClient(create_app(path)) as client:
+        full=client.post('/api/multimodal/search',json={**query,'k':100}).json()
+        actual=[]
+        for offset in range(0,full['total_rows']+5,5):
+            response=client.post('/api/multimodal/search',json={**query,'k':5,'offset':offset})
+            assert response.status_code==200
+            page=response.json()
+            assert page['total_rows']==full['total_rows']
+            assert page['rows']==full['rows'][offset:offset+5]
+            actual.extend(row['id'] for row in page['rows'])
+        assert actual==[row['id'] for row in full['rows']]
+        assert len(actual)==len(set(actual))
+
+
+def test_uploaded_image_pagination(collection,monkeypatch):
+    path,_=collection
+    class Encoder:
+        def __init__(self,**kwargs): pass
+        def encode(self,images): return np.ones((len(images),16),dtype=np.float32)
+    monkeypatch.setattr('backend.core.multimodal.collection.ResNetEncoder',Encoder)
+    with TestClient(create_app(path)) as client:
+        image=client.get('/api/multimodal/image/1').content
+        full=client.post('/api/multimodal/image-search?mode=exact&k=100',content=image).json()
+        page=client.post('/api/multimodal/image-search?mode=exact&k=12&offset=12',content=image).json()
+        assert page['rows']==full['rows'][12:24]
+        assert page['total_rows']==40 and page['offset']==12
+
+
+def test_bovw_pagination_excludes_reference_and_counts_matches(collection,monkeypatch):
+    path,engine=collection
+    with TableStorage(engine.schema_manager,engine.schema_manager.get_table('productos'),DiskCounter()) as storage:
+        documents=[(pack_rid(rid),{'word-a' if storage.serializer.unpack(raw)['id']%2 else 'word-b':1})
+                   for rid,raw in storage.records.scan()]
+    InvertedIndex.build(path/'multimodal'/'bovw',documents).close()
+    class Codebook:
+        def __init__(self,*args): pass
+        def encode(self,features): return {'word-a':1}
+        def close(self): pass
+    monkeypatch.setattr('backend.core.multimodal.collection.VisualWords',Codebook)
+    monkeypatch.setattr('backend.core.multimodal.collection.sift',lambda image:np.zeros((1,128)))
+    expected=[i for i in range(40) if i%2 and i%3 and i!=1]
+    with TestClient(create_app(path)) as client:
+        actual=[]
+        for offset in (0,5,10,15):
+            response=client.post('/api/multimodal/search',json={
+                'mode':'bovw','reference_id':1,'category':'Apparel','k':5,'offset':offset})
+            assert response.status_code==200
+            page=response.json()
+            assert page['total_rows']==len(expected)
+            assert [row['id'] for row in page['rows']]==expected[offset:offset+5]
+            actual.extend(row['id'] for row in page['rows'])
+        assert actual==expected
+
+
+def test_map_preserves_combined_filters_and_all_text_matches(collection):
+    path,_=collection
+    with TestClient(create_app(path)) as client:
+        red=client.post('/api/multimodal/map',json={'text':'red','k':12}).json()
+        assert {r['id'] for r in red['rows']}==set(range(1,40,2))
+        body={'mode':'boolean','text':'red AND NOT blue','category':'Apparel',
+              'min_price':35,'max_price':65,'lon':-77.04,'lat':-12.10,'radius':2,'k':1}
+        response=client.post('/api/multimodal/map',json=body)
+        assert response.status_code==200
+        expected={i for i in range(40) if i%2 and i%3 and 35<=30+i<=65
+                  and haversine((-77.04,-12.10),(-77.04+i*.001,-12.10))<=2}
+        assert {r['id'] for r in response.json()['rows']}==expected
+        assert client.post('/api/multimodal/map',json={'category':'absent'}).json()['rows']==[]
+        assert client.post('/api/multimodal/map',json={'lon':-77.04}).status_code==400
+        for mode in ('ivf','exact','bovw','spatial_knn'):
+            assert client.post('/api/multimodal/map',json={'mode':mode}).status_code==400
+        assert client.post('/api/multimodal/search',json={'k':101}).status_code==422
+
+
+def test_map_is_not_capped_by_normal_search_limit(tmp_path):
+    engine=QueryExecutor(directory=tmp_path)
+    engine.execute('CREATE TABLE productos (id INT PRIMARY KEY, titulo CHAR(24), categoria CHAR(24), precio FLOAT, lon FLOAT, lat FLOAT) USING HEAP;')
+    with TableStorage(engine.schema_manager,engine.schema_manager.get_table('productos'),DiskCounter()) as storage:
+        for i in range(1005):
+            storage.insert([i,'Producto','Apparel',50.,-77.01,-12.10])
+    root=tmp_path/'multimodal'
+    root.mkdir()
+    (root/'manifest.json').write_text(json.dumps({'table':'productos','n':1005,'indexes':{}}))
+    with TestClient(create_app(tmp_path)) as client:
+        response=client.post('/api/multimodal/map',json={'k':12})
+    assert response.status_code==200
+    assert {row['id'] for row in response.json()['rows']}==set(range(1005))
+
+
 def test_geo_bounds_dateline_poles_and_knn(tmp_path):
     assert len(radius_windows(179.99,0,5))==2
     assert radius_windows(0,89.99,5)[0][0]==-180

@@ -170,7 +170,7 @@ class InvertedIndex:
             raise ValueError("Falta un operador AND/OR entre términos")
         return result
 
-    def rank(self, query, k=10, allowed=None, boolean=False):
+    def rank(self, query, k=10, allowed=None, boolean=False, exclude=None):
         if k < 1:
             raise ValueError("k debe ser positivo")
         if boolean:
@@ -188,14 +188,16 @@ class InvertedIndex:
             qw = (1+math.log10(tfq))*idf
             qnorm += qw*qw
             for doc_id, tf in rows:
-                if allowed is None or doc_id in allowed:
+                if doc_id != exclude and (allowed is None or doc_id in allowed):
                     scores[doc_id] += qw*(1+math.log10(tf))*idf
         qnorm = math.sqrt(qnorm)
         self.last_candidates = len(scores)
+        self.last_matches = 0
         def normalized():
             for doc_id, dot in scores.items():
                 norm = self.norms.find(doc_id)[1]
                 if dot > 0 and norm and qnorm:
+                    self.last_matches += 1
                     yield doc_id, min(1., dot/(norm*qnorm))
         return heapq.nsmallest(k, normalized(), key=lambda x: (-x[1], x[0]))
 

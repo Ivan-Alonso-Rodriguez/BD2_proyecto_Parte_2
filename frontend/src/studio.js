@@ -1,7 +1,7 @@
 import {createStoreMap} from './store-map.js';
 
 const $ = id => document.getElementById(id);
-const state = { category: '', rows: [], reference: null, file: null, objectUrl: null, center: [-12.10, -77.04], view: 'explore', resultView: 'grid', busy: false, serial: 0 };
+const state = { category: '', rows: [], reference: null, file: null, objectUrl: null, center: [-12.10, -77.04], view: 'explore', resultView: 'grid', busy: false, serial: 0, offset: 0, total: 0, pageSize: 12, paged: false };
 const names = {Apparel:'Ropa', Footwear:'Calzado', Accessories:'Accesorios', 'Personal Care':'Cuidado personal'};
 const money = new Intl.NumberFormat('es-PE', {style:'currency', currency:'PEN'});
 const number = new Intl.NumberFormat('es-PE');
@@ -32,48 +32,82 @@ function metrics(result) {
 }
 function renderProducts(result) {
   state.rows = result.rows;
-  $('result-count').textContent = `${result.rows.length} resultados mostrados · ${state.reference || state.file ? 'similitud visual' : $('search').value.trim() ? 'relevancia textual' : 'selección del catálogo'}`;
+  state.offset = result.offset || 0;
+  state.total = result.total_rows;
+  state.paged = result.execution_plan?.result_scope === 'page' && state.resultView === 'grid';
+  const fullMap=state.resultView==='map' && result.execution_plan?.result_scope==='all_matches';
+  const selection=['ivf','exact','bovw'].includes($('mode').value) ? 'mejores coincidencias visuales' : $('mode').value==='spatial_knn' ? 'vecinos más cercanos' : $('search').value.trim() ? 'relevancia textual' : 'selección del catálogo';
+  $('result-count').textContent = fullMap
+    ? `${number.format(result.rows.length)} productos en el mapa · todos los que cumplen los filtros`
+    : state.paged
+      ? `${number.format(result.rows.length ? state.offset+1 : 0)}–${number.format(state.offset+result.rows.length)} de ${number.format(state.total)} productos · ${selection}`
+      : `${number.format(result.rows.length)} resultados mostrados · ${selection}`;
   $('results-title').textContent = state.reference || state.file ? 'Una imagen, nuevas posibilidades' : $('search').value.trim() ? 'Lo que encontramos para ti' : 'El catálogo, a tu alcance';
   $('empty').hidden = !!result.rows.length || state.resultView === 'map';
   const visualDistance = ['ivf','exact','spatial_knn'].includes($('mode').value);
-  $('product-grid').innerHTML = result.rows.map(row => `<article class="product-card">
+  $('product-grid').innerHTML = result.rows.slice(0,12).map(row => `<article class="product-card">
     <div class="product-image"><span class="product-number">${escape(row.id)}</span><img src="${escape(row.imagen_url)}" alt="${escape(row.titulo)}" loading="lazy"><button class="similar-button" data-similar="${row.id}" aria-label="Buscar similares a ${escape(row.titulo)}" title="Buscar productos similares">↗</button></div>
     <div class="product-info"><span class="product-category">${escape(names[row.categoria] || row.categoria)}</span><h3 class="product-name" title="${escape(row.titulo)}">${escape(row.titulo)}</h3><div class="product-meta"><span class="product-price">${money.format(row.precio)}</span><span class="product-distance">${row.distancia_km !== undefined ? row.distancia_km.toFixed(1)+' km' : '◎ Lima'}</span></div>${row.score ? `<div class="score">${visualDistance ? 'Distancia' : 'Relevancia'} · ${row.score.toFixed(4)}</div>` : ''}</div></article>`).join('');
   metrics(result);
+  renderPagination();
   if (state.resultView === 'map') renderMap();
+}
+function renderPagination() {
+  const pages = Math.max(1, Math.ceil(state.total/state.pageSize));
+  const page = Math.floor(state.offset/state.pageSize)+1;
+  $('pagination').hidden = !state.paged || !state.total || state.resultView !== 'grid';
+  $('page-input').value = page;
+  $('page-input').max = pages;
+  $('page-input').disabled = state.busy;
+  $('page-form').querySelector('button').disabled = state.busy;
+  $('page-total').textContent = `de ${number.format(pages)}`;
+  ['first-page','previous-page'].forEach(id => $(id).disabled = state.busy || page <= 1);
+  ['next-page','last-page'].forEach(id => $(id).disabled = state.busy || page >= pages);
+}
+function goToPage(page) {
+  const pages = Math.ceil(state.total/state.pageSize);
+  if (state.busy || !state.paged || !Number.isInteger(page) || page < 1 || page > pages) return;
+  search({offset:(page-1)*state.pageSize});
 }
 function spec() {
   let mode = $('mode').value;
   if (['ivf','exact','bovw'].includes(mode) && !state.reference && !state.file) throw Error('Sube una imagen o pulsa ↗ en un producto para buscar similares.');
   if (mode === 'spatial_knn') $('nearby').checked=true;
-  const body = {mode, text:$('search').value.trim(), k:12, probes:Number($('probes').value)};
+  const body = {mode, text:$('search').value.trim(), k:state.pageSize, probes:Number($('probes').value)};
   if (state.category) body.category = state.category;
   if ($('max-price').value !== '') body.max_price = Number($('max-price').value);
   if ($('nearby').checked) Object.assign(body, {lon:state.center[1], lat:state.center[0], radius:Number($('radius').value)});
   if (state.reference) body.reference_id = state.reference.id;
   return body;
 }
-async function search() {
+async function search({offset=0}={}) {
   const serial = ++state.serial;
   error('');
   state.busy = true;
+  renderPagination();
   document.body.classList.add('loading');
   $('search-button').disabled = true;
   $('result-count').textContent = 'Consultando páginas en disco…';
   try {
     const body = spec();
+    body.offset = state.resultView === 'grid' ? offset : 0;
     let result;
     if (state.file && ['ivf','exact','bovw'].includes(body.mode)) {
       const params = new URLSearchParams();
-      for (const key of ['mode','k','probes','category','max_price','lon','lat','radius','text']) if (body[key] !== undefined) params.set(key, body[key]);
+      for (const key of ['mode','k','offset','probes','category','max_price','lon','lat','radius','text']) if (body[key] !== undefined) params.set(key, body[key]);
       result = await api('/api/multimodal/image-search?'+params, {method:'POST', body:state.file, headers:{'Content-Type':state.file.type}});
-    } else result = await api('/api/multimodal/search', {method:'POST', body:JSON.stringify(body), headers:{'Content-Type':'application/json'}});
+    } else {
+      const fullMap=state.resultView==='map' && ['text','boolean','browse','spatial'].includes(body.mode);
+      result = await api(fullMap?'/api/multimodal/map':'/api/multimodal/search', {method:'POST', body:JSON.stringify(body), headers:{'Content-Type':'application/json'}});
+    }
     if (serial === state.serial) renderProducts(result);
   } catch (exception) {
     if (serial === state.serial) {
       error(exception.message);
       clearMetrics();
       state.rows=[];
+      state.paged=false;
+      state.total=0;
       $('product-grid').replaceChildren();
       $('result-count').textContent='Consulta no completada';
       if (map) map.clear();
@@ -81,6 +115,7 @@ async function search() {
   } finally {
     if (serial === state.serial) {
       state.busy = false;
+      renderPagination();
       document.body.classList.remove('loading');
       $('search-button').disabled=false;
     }
@@ -104,12 +139,15 @@ function clearReference() {
   search();
 }
 function setResultsView(view) {
+  const changed=state.resultView!==view;
   state.resultView=view;
   $('product-grid').hidden=view==='map';
   $('map-panel').hidden=view!=='map';
+  renderPagination();
   $('empty').hidden=!!state.rows.length || view==='map';
   document.querySelectorAll('[data-results-view]').forEach(button=>button.classList.toggle('active',button.dataset.resultsView===view));
-  if (view==='map') renderMap();
+  if (changed) search();
+  else if (view==='map') renderMap();
 }
 async function renderMap() {
   try {
@@ -186,7 +224,12 @@ $('categories').addEventListener('click',event=>{const button=event.target.close
 $('product-grid').addEventListener('click',event=>{const button=event.target.closest('[data-similar]');if(!button)return;state.reference=state.rows.find(r=>r.id===Number(button.dataset.similar));state.file=null;if(state.objectUrl)URL.revokeObjectURL(state.objectUrl);showReference(state.reference.titulo,state.reference.imagen_url);search();});
 $('image-upload').addEventListener('change',event=>{const file=event.target.files[0];if(!file)return;if(file.size>10*1024*1024){error('La imagen debe pesar menos de 10 MB.');return;}state.reference=null;state.file=file;if(state.objectUrl)URL.revokeObjectURL(state.objectUrl);state.objectUrl=URL.createObjectURL(file);showReference(file.name,state.objectUrl);search();});
 $('clear-reference').addEventListener('click',clearReference);
-['mode','probes','nearby','radius'].forEach(id=>$(id).addEventListener('change',()=>search()));
+['mode','probes','nearby','radius','max-price'].forEach(id=>$(id).addEventListener('change',()=>search()));
+$('first-page').addEventListener('click',()=>goToPage(1));
+$('previous-page').addEventListener('click',()=>goToPage(Math.floor(state.offset/state.pageSize)));
+$('next-page').addEventListener('click',()=>goToPage(Math.floor(state.offset/state.pageSize)+2));
+$('last-page').addEventListener('click',()=>goToPage(Math.ceil(state.total/state.pageSize)));
+$('page-form').addEventListener('submit',event=>{event.preventDefault();goToPage(Number($('page-input').value));});
 document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>view(button.dataset.view)));
 document.querySelectorAll('[data-results-view]').forEach(button=>button.addEventListener('click',()=>setResultsView(button.dataset.resultsView)));
 $('sql-example').addEventListener('change',()=>$('sql-input').value=examples[$('sql-example').value]);

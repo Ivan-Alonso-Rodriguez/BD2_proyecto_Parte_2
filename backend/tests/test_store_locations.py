@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import random
+import statistics
 
 import pytest
 
@@ -13,14 +14,30 @@ from data.store_locations import LOCATION_MODEL, LOCATION_SEED, is_store_locatio
 from tools.repair_store_locations import repair_locations
 
 
-def test_locations_are_reproducible_and_inside_inland_lima():
+def test_locations_cover_metropolitan_lima_without_rectangular_clusters():
     first, second = random.Random(LOCATION_SEED), random.Random(LOCATION_SEED)
     locations = [sample_store_location(first) for _ in range(10000)]
     assert locations == [sample_store_location(second) for _ in range(10000)]
-    # Límite exterior conservador, al este de la costa de este sector de Lima.
-    assert all(-77.045 < lon < -76.970 and -12.135 < lat < -12.075 for lon, lat in locations)
     assert all(is_store_location(lon, lat) for lon, lat in locations)
-    assert not is_store_location(-77.15, -12.16)
+    assert all(-77.20 < lon < -76.62 and -12.52 < lat < -11.57 for lon, lat in locations)
+    # Cobertura independiente del antiguo grupo de cuatro rectángulos céntricos.
+    assert sum(lat > -11.98 for _, lat in locations) > 1000
+    assert sum(lat < -12.18 for _, lat in locations) > 1000
+    assert sum(lon > -76.90 for lon, _ in locations) > 1000
+    assert sum(lon < -77.075 for lon, _ in locations) > 1000
+    assert min(lat for _, lat in locations) < -12.40
+    assert max(lat for _, lat in locations) > -11.80
+    assert statistics.pstdev(lon for lon, _ in locations) > .07
+    assert statistics.pstdev(lat for _, lat in locations) > .10
+
+
+def test_land_mask_rejects_pacific_and_accepts_separated_urban_locations():
+    for point in [(-77.15,-12.16), (-77.12,-12.12), (-77.20,-12.05), (-77.30,-11.90)]:
+        assert not is_store_location(*point)
+    for point in [(-77.035,-12.046), (-77.065,-11.96), (-76.94,-12.22), (-76.72,-11.94)]:
+        assert is_store_location(*point)
+    assert not is_store_location(float('nan'), -12.1)
+    assert not is_store_location(-77., float('inf'))
 
 
 @pytest.fixture
@@ -41,6 +58,7 @@ def catalog(tmp_path):
     tree.close()
     (root / "manifest.json").write_text(json.dumps({
         "table": "productos", "n": 40, "indexes": {"geo": {"kind": "RTREE"}},
+        "location_generation": {"model": "lima-inland-v1"},
     }), encoding="utf-8")
     return engine, tmp_path
 

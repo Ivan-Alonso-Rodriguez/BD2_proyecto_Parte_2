@@ -51,7 +51,7 @@ export async function createStoreMap(element, config, center, onCenterChange, st
     const maps=await loadGoogleMaps(config.script_url,status);
     const map=new maps.Map(element,{center:{lat:center[0],lng:center[1]},zoom:12,mapTypeControl:false,streetViewControl:false});
     const info=new maps.InfoWindow();
-    let radiusCircle;
+    let radiusCircle, fitted=false;
     map.data.setStyle({icon:{path:maps.SymbolPath.CIRCLE,scale:7,strokeColor:'#fff',strokeWeight:2,fillColor:'#7760bc',fillOpacity:.9}});
     map.addListener('click',event=>{
       if (event.latLng) onCenterChange([event.latLng.lat(),event.latLng.lng()]);
@@ -75,15 +75,21 @@ export async function createStoreMap(element, config, center, onCenterChange, st
           type:'Feature',id:row.id,geometry:{type:'Point',coordinates:[row.lon,row.lat]},
           properties:{title:row.titulo,price:money.format(row.precio)},
         }))});
+        if (!fitted && rows.length) {
+          const bounds=new maps.LatLngBounds();
+          for (const row of rows) bounds.extend({lat:row.lat,lng:row.lon});
+          map.fitBounds(bounds,24);
+          fitted=true;
+        }
         if (radius!==null) radiusCircle=new maps.Circle({map,center:{lat:currentCenter[0],lng:currentCenter[1]},radius,strokeColor:'#8872be',strokeOpacity:.8,strokeWeight:1,fillColor:'#8872be',fillOpacity:.07,clickable:false});
       },
     };
   }
 
   if (!window.L) throw Error('No se cargó Leaflet. Revisa los archivos frontend/vendor.');
-  const map=L.map(element).setView(center,12);
+  const map=L.map(element,{preferCanvas:true}).setView(center,12);
   const layers=L.layerGroup().addTo(map);
-  let radiusCircle;
+  let radiusCircle, fitted=false;
   const tiles=L.tileLayer(config.tile_url,{attribution:config.attribution,maxZoom:config.max_zoom});
   tiles.on('tileerror',()=>status('No se pudo cargar el mapa. Revisa tu conexión a internet.'));
   tiles.on('tileload',()=>status(''));
@@ -99,8 +105,12 @@ export async function createStoreMap(element, config, center, onCenterChange, st
       map.invalidateSize();
       clear();
       for (const row of rows) {
-        L.circleMarker([row.lat,row.lon],{radius:7,color:'#fff',weight:2,fillColor:'#7760bc',fillOpacity:.9})
-          .bindPopup(productContent(row.titulo,money.format(row.precio))).addTo(layers);
+        L.circleMarker([row.lat,row.lon],{radius:rows.length>1000?3:7,color:'#fff',weight:rows.length>1000?1:2,fillColor:'#7760bc',fillOpacity:.9})
+          .bindPopup(()=>productContent(row.titulo,money.format(row.precio))).addTo(layers);
+      }
+      if (!fitted && rows.length) {
+        map.fitBounds(rows.map(row=>[row.lat,row.lon]),{padding:[24,24],maxZoom:12});
+        fitted=true;
       }
       if (radius!==null) radiusCircle=L.circle(currentCenter,{radius,color:'#8872be',fillOpacity:.07,weight:1,dashArray:'5 5'}).addTo(map);
     },

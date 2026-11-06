@@ -53,10 +53,21 @@ class MultimodalCollection:
         return result
 
     def search(self, mode="text", text="", k=20, conditions=None, radius=None, vector=None,
-               reference_id=None, probes=None, image=None, metric=None, order=None):
+               reference_id=None, probes=None, image=None, metric=None, order=None, all_results=False, offset=None):
         info = self.manifest()
         if mode not in ("text", "boolean", "ivf", "exact", "bovw", "spatial", "spatial_knn", "browse") or not 1 <= k <= 1000:
             raise ValueError("Modo o cantidad de resultados inválidos")
+        if offset is not None and (not isinstance(offset, int) or isinstance(offset, bool) or not 0 <= offset <= 1000000):
+            raise ValueError("Desplazamiento de página inválido")
+        page_size = k
+        if all_results:
+            if mode not in ("text", "boolean", "spatial", "browse"):
+                raise ValueError("El mapa completo admite catálogo, texto y filtros espaciales; similitud y k-NN conservan su límite")
+            k = max(1, info["n"])
+            offset = None
+        elif offset is not None:
+            # Rankear el prefijo necesario; solo recuperar las filas de la página.
+            k = max(1, min(offset + page_size, info["n"]))
         probes = self.probes if probes is None else probes
         if not 1 <= probes <= 10000:
             raise ValueError("probes fuera de rango")
@@ -69,6 +80,7 @@ class MultimodalCollection:
             codec = KeyCodec(table.column(column).dtype)
             codec.pack(value)
         allowed, scored, candidate_count, extraction_ms = None, None, 0, 0.
+        total_matches = 0
         with TableStorage(self.engine.schema_manager, table, counter) as storage:
             # Predicados relacionales: intersectar candidatos de B+ y Hash antes del ranking.
             for column, op, value in conditions:
@@ -149,13 +161,20 @@ class MultimodalCollection:
                         if q.shape != (index.d,) or not np.isfinite(q).all():
                             raise ValueError(f"Se requiere un vector finito de {index.d} dimensiones")
                         import heapq
-                        scored = heapq.nsmallest(k, ((r[0], distance(np.asarray(r[1:], dtype=np.float32), q, "L2")) for r in index.exact.rows() if (allowed is None or r[0] in allowed) and r[0] != ref_rid), key=lambda x: (x[1], x[0]))
+                        def l2_matches():
+                            nonlocal total_matches
+                            for row in index.exact.rows():
+                                if (allowed is None or row[0] in allowed) and row[0] != ref_rid:
+                                    total_matches += 1
+                                    yield row[0], distance(np.asarray(row[1:], dtype=np.float32), q, "L2")
+                        scored = heapq.nsmallest(k, l2_matches(), key=lambda x: (x[1], x[0]))
                         candidate_count = index.n
                         steps.append("ExactL2Scan")
                         mode = "exact"
                     else:
                         scored = index.search(vector, k, probes, allowed, mode == "exact", exclude=ref_rid)
                         candidate_count = index.last_candidates
+                        total_matches = index.last_matches
                         steps.append("ExactVectorScan" if mode == "exact" else f"IVF(probes={min(probes, index.centroids.count)})")
                 finally:
                     index.close()
@@ -179,9 +198,9 @@ class MultimodalCollection:
                 extraction_ms = (time.perf_counter()-extract_start)*1000
                 index = InvertedIndex(self.root / "bovw", counter)
                 try:
-                    scored = index.rank(words, k+1, allowed)
+                    scored = index.rank(words, k, allowed, exclude=ref_rid)
                     candidate_count = index.last_candidates
-                    scored = [(i, s) for i, s in scored if i != ref_rid][:k]
+                    total_matches = index.last_matches
                 finally:
                     index.close()
                 steps.extend(["SIFT + Codebook", "BoVW TFIDF Cosine"])
@@ -193,12 +212,14 @@ class MultimodalCollection:
                         matches = index.boolean(text)
                         candidate_count = len(matches)
                         eligible = set(matches) if allowed is None else set(matches)&allowed
+                        total_matches = len(eligible)
                         ranked = index.rank(text, k, eligible, boolean=True)
                         # Documentos de norma cero siguen satisfaciendo el booleano.
                         scored = ranked + [(i, 0.) for i in sorted(eligible-set(i for i, _ in ranked))][:max(0, k-len(ranked))]
                     else:
                         scored = index.rank(text, k, allowed)
                         candidate_count = index.last_candidates
+                        total_matches = index.last_matches
                     steps.append("BooleanMerge + TFIDF" if is_boolean else "Inverted TFIDF Cosine")
                 finally:
                     index.close()
@@ -209,6 +230,7 @@ class MultimodalCollection:
                 try:
                     scored = [(pack_rid(rid), d) for rid, d in tree.knn(radius[:2], k, metric=geographic_mindist, allowed=allowed)]
                     candidate_count = len(allowed) if allowed is not None else info["n"]
+                    total_matches = candidate_count
                     steps.append("RTreeKNN(MINDIST + heap)")
                 finally:
                     tree.close()
@@ -218,12 +240,15 @@ class MultimodalCollection:
                 stream = storage.records.scan() if allowed is None else storage.fetch_rids(unpack_rid(i) for i in sorted(allowed))
                 collected = [(pack_rid(rid), storage.serializer.unpack(raw)) for rid, raw in stream]
                 candidate_count = len(collected)
+                total_matches = candidate_count
                 if order:
                     column, direction = order
                     table.column(column)
                     collected.sort(key=lambda item: item[1][column], reverse=direction == "DESC")
                 scored = [(i, 0.) for i, _ in collected[:k]]
                 steps.append("HeapScan" if allowed is None else "RIDFetch")
+            if offset is not None:
+                scored = scored[offset:offset + page_size]
             rows_by_id = {pack_rid(rid): storage.serializer.unpack(raw) for rid, raw in storage.fetch_rids(unpack_rid(i) for i, _ in scored)}
             result_rows = []
             for doc_id, score in scored:
@@ -233,9 +258,15 @@ class MultimodalCollection:
                 if radius:
                     row["distancia_km"] = haversine(radius[:2], (row["lon"], row["lat"]))
                 result_rows.append(row)
-        steps.append("TopK")
+        steps.append("AllMatches" if all_results else "Page" if offset is not None else "TopK")
         result = self._result(result_rows, counter, start, steps, candidate_count, mode == "ivf" and probes < info["clusters"], probes=probes)
         result.execution_plan["extraction_ms"] = extraction_ms
+        result.execution_plan["result_scope"] = "all_matches" if all_results else "page" if offset is not None else "top_k"
+        result.offset = offset or 0
+        result.limit = k if all_results else page_size
+        if offset is not None:
+            result.total_rows = total_matches
+            result.message = f"{len(result.rows)} de {total_matches} resultados"
         return result
 
     def image(self, product_id):

@@ -130,6 +130,7 @@ class IVFIndex:
         if probes < 1 or (radius is not None and (not math.isfinite(radius) or radius < 0)):
             raise ValueError("probes/radio inválido")
         best, self.last_candidates = [], 0
+        self.last_matches = 0
         def candidates():
             if exact:
                 yield from self.exact.rows()
@@ -157,6 +158,7 @@ class IVFIndex:
             dist = distance(np.asarray(row[1:], dtype=np.float32), query, self.metric)
             if radius is not None and dist > radius:
                 continue
+            self.last_matches += 1
             item = (-dist, -doc_id)
             if len(best) < k:
                 heapq.heappush(best, item)

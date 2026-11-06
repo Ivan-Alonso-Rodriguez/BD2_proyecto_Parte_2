@@ -43,12 +43,17 @@ API de aplicación:
   "lat": -12.10,
   "radius": 5,
   "probes": 5,
-  "k": 12
+  "k": 12,
+  "offset": 0
 }
 ```
 
-Enviar a `POST /api/multimodal/search`. Modos: `text`, `boolean`, `ivf`, `exact`, `bovw`, `spatial`, `spatial_knn`, `browse`. Un filtro espacial exige lon/lat/radius juntos. `spatial_knn` retorna los k más cercanos dentro del radio y demás filtros.
+Enviar a `POST /api/multimodal/search`. Modos: `text`, `boolean`, `ivf`, `exact`, `bovw`, `spatial`, `spatial_knn`, `browse`. Un filtro espacial exige lon/lat/radius juntos. `spatial_knn` ordena los más cercanos dentro del radio y demás filtros.
 
-Para una foto propia: `POST /api/multimodal/image-search?mode=ivf&k=12&probes=5`, cuerpo binario JPEG/PNG/WebP; máximo 10 MB y 25 megapíxeles. Cambiar `mode=bovw` o `mode=exact` compara las representaciones.
+`k` es el tamaño de página (1–100; por defecto 20) y `offset` el número de coincidencias a saltar (0–1000000; por defecto 0). Para páginas de 12, enviar `offset=0`, `12`, `24`, etc. La respuesta incluye `rows`, `total_rows` (total que cumple la búsqueda), `offset`, `limit` y `execution_plan.result_scope="page"`. Un desplazamiento posterior al último resultado devuelve filas vacías conservando el total. Se pagina después del filtrado y ranking, con desempate estable por RID. IVF cuenta solo las coincidencias de las listas exploradas; subir `probes` puede cambiar ese total. La consola SQL conserva su semántica de `LIMIT`.
+
+`POST /api/multimodal/map` acepta los mismos filtros en catálogo, texto y radio, e ignora `offset` para devolver todas las coincidencias (`result_scope="all_matches"`). No admite modos visuales ni `spatial_knn`.
+
+Para una foto propia: `POST /api/multimodal/image-search?mode=ivf&k=12&offset=0&probes=5`, cuerpo binario JPEG/PNG/WebP; máximo 10 MB y 25 megapíxeles. Acepta el mismo desplazamiento para paginar. Cambiar `mode=bovw` o `mode=exact` compara las representaciones.
 
 No se soportan JOIN, agregaciones, UPDATE ni SQL completo. El índice invertido implementa AND, OR, AND NOT, AND-NOT, NOT y paréntesis; precedencia NOT > AND > OR. La frase sin operadores en MATCH solicita ranking de términos. Los documentos sin peso TF-IDF positivo pueden aparecer con score 0 en consultas booleanas para no perder coincidencias válidas.

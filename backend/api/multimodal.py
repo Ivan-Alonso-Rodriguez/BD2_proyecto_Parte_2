@@ -17,6 +17,7 @@ class SearchRequest(BaseModel):
     mode: Literal["text", "boolean", "ivf", "exact", "bovw", "spatial", "spatial_knn", "browse"] = "text"
     text: str = Field(default="", max_length=2000)
     k: int = Field(default=20, ge=1, le=100)
+    offset: int = Field(default=0, ge=0, le=1000000)
     category: str | None = None
     min_price: float | None = Field(default=None, ge=0)
     max_price: float | None = Field(default=None, ge=0)
@@ -39,7 +40,7 @@ class SearchRequest(BaseModel):
             raise ValueError("El precio mínimo supera el máximo")
         if any(v is not None for v in (self.lon, self.lat, self.radius)) and not all(v is not None for v in (self.lon, self.lat, self.radius)):
             raise ValueError("Envía lon, lat y radius juntos")
-        return dict(mode=self.mode, text=self.text, k=self.k, conditions=conditions,
+        return dict(mode=self.mode, text=self.text, k=self.k, offset=self.offset, conditions=conditions,
                     radius=(self.lon, self.lat, self.radius) if self.radius is not None else None,
                     reference_id=self.reference_id, probes=self.probes, vector=self.vector)
 
@@ -57,8 +58,14 @@ def search(body: SearchRequest, request: Request):
     return run_operation(request, lambda engine: engine.multimodal.search(**body.spec()).to_dict())
 
 
+@router.post("/map")
+def map_results(body: SearchRequest, request: Request):
+    return run_operation(request, lambda engine: engine.multimodal.search(**body.spec(), all_results=True).to_dict())
+
+
 @router.post("/image-search")
 async def image_search(request: Request, mode: Literal["ivf", "exact", "bovw"] = "ivf", k: int = 12,
+                       offset: int = 0,
                        probes: int = 5, category: str | None = None, max_price: float | None = None,
                        lon: float | None = None, lat: float | None = None, radius: float | None = None, text: str = ""):
     size, chunks = 0, []
@@ -70,7 +77,7 @@ async def image_search(request: Request, mode: Literal["ivf", "exact", "bovw"] =
     if not size:
         raise HTTPException(400, "Imagen vacía")
     def operation(engine):
-        spec = SearchRequest(mode=mode, text=text, k=k, probes=probes, category=category, max_price=max_price,
+        spec = SearchRequest(mode=mode, text=text, k=k, offset=offset, probes=probes, category=category, max_price=max_price,
                              lon=lon, lat=lat, radius=radius).spec()
         try:
             return engine.multimodal.search(**spec, image=b"".join(chunks)).to_dict()

@@ -4,8 +4,8 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Atlas · Explorador multimodal</title>
   <meta name="description" content="Recomendador multimodal con índices binarios en disco, búsqueda visual y telemetría de consultas.">
-  <link rel="stylesheet" href="/vendor/leaflet.css"><link rel="stylesheet" href="/src/studio.css">
-  <script defer src="/vendor/leaflet.js"></script><script type="module" src="/src/studio.js"></script>
+  <link rel="stylesheet" href="/vendor/leaflet.css"><link rel="stylesheet" href="/src/studio.css?v=pagination-1">
+  <script defer src="/vendor/leaflet.js"></script><script type="module" src="/src/studio.js?v=pagination-1"></script>
 </head>
 <body>
 <aside class="sidebar">
@@ -37,6 +37,13 @@
     <div class="content-layout" id="results-layout">
       <div class="results-main">
         <div class="results-heading"><div><h2 id="results-title">El catálogo, a tu alcance</h2><span id="result-count" class="muted">Cargando productos…</span></div><div class="view-switch" aria-label="Vista de resultados"><button class="active" data-results-view="grid" aria-label="Ver tarjetas">▦</button><button data-results-view="map" aria-label="Ver mapa">◎</button></div></div>
+        <nav id="pagination" class="pagination" aria-label="Páginas de productos" hidden>
+          <button id="first-page" type="button" aria-label="Primera página" title="Primera página">«</button>
+          <button id="previous-page" type="button">Anterior</button>
+          <form id="page-form" class="page-selector"><label for="page-input">Página</label><input id="page-input" type="number" min="1" value="1" required aria-label="Ir a la página"><span id="page-total" aria-live="polite"></span><button type="submit" class="page-go">Ir</button></form>
+          <button id="next-page" type="button">Siguiente</button>
+          <button id="last-page" type="button" aria-label="Última página" title="Última página">»</button>
+        </nav>
         <div id="product-grid" class="product-grid" aria-live="polite"></div>
         <div id="empty" class="empty" hidden><span>⌕</span><h3>No encontramos coincidencias</h3><p>Prueba otros términos o amplía los filtros de precio y distancia.</p></div>
         <div id="map-panel" hidden><div id="map"></div><p id="map-status" class="muted small" role="status" hidden></p><div class="map-caption"><span class="status-dot"></span><span>Haz clic en el mapa para mover el centro de búsqueda. Ubicaciones sintéticas en Lima.</span><span id="map-center"></span></div></div>
